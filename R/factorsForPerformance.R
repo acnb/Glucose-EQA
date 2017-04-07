@@ -82,7 +82,8 @@ pByPrevEQA <- ggplot(byPrevEQA, aes(x=status.prev, y=p, fill=status)) +
   scale_y_continuous(labels=percent)+
   ylab('percentage') +
   xlab('previous result')+
-  theme_Publication(base_size = 10)
+  theme_Publication(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
 ########################
 
@@ -131,7 +132,7 @@ diffBetweenLots$id <- as.factor(1:nrow(diffBetweenLots))
 
 save(file=paste0(base.dir, 'generated/diffsInLots.RData'), diffBetweenLots)
 
-pLots <- ggplot(diffBetweenLots2, 
+pLots <- ggplot(diffBetweenLots, 
                 aes(x=id, y=all, ymin=p025, ymax=p975, fill=over))+ 
   geom_pointrange(shape=21, size=.2)  + 
   coord_flip() +
