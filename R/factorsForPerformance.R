@@ -1,20 +1,25 @@
 bySeqEQA <- eqaAll %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
-  ungroup() %>%
   filter(!(year == 2011 & seq == 1 & round < 3)) %>%
+  mutate(hasFullSeq = (1 %in% seq)) %>%
+  filter(hasFullSeq | seq > 8) %>%
   filter(abs(relDiff) < .5) %>%
-  mutate(seq = ifelse(seq > 20, 20, seq)) %>% # combine eveything > 20
-  group_by(eqa, seq, status) %>%
+  mutate(seqGrp = ifelse(seq <= 4, 'new', 
+                         ifelse(seq <= 8, 'intermediate', 'experienced' ))) %>% 
+  group_by(eqa, seqGrp, status) %>%
   summarise(n=n()) %>%
   mutate(p=n/sum(n)) %>%
-  ungroup() 
+  ungroup() %>%
+  mutate(seqGrp = factor(seqGrp, 
+                         levels = c('new', 'intermediate', 'experienced'),
+                         ordered = TRUE))
 
-pBySeqEQA <- ggplot(bySeqEQA, aes(x=seq, y=p, color=status)) + 
+pBySeqEQA <- ggplot(bySeqEQA, aes(x=seqGrp, y=p, color=status)) + 
   geom_point(size=1) +
-  geom_smooth(size=1, method='lm') +
   facet_grid(.~eqa) +
   theme_Publication(base_size = 10) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(labels=percent) +
   scale_color_manual(values=colors.status) +
   xlab('number of previous EQAs') +
