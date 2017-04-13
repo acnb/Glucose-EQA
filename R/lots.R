@@ -61,4 +61,4 @@ pLots <- ggplot(diffBetweenLots,
   ylab("maximum difference between lots\n in same EQA round")
 
 ggsave(paste0(base.dir, 'fig/lots.png'),
-       g,  dpi = 600, width = 85, height= 100, units='mm')
+       pLots,  dpi = 600, width = 85, height= 100, units='mm')
