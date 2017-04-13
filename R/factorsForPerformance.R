@@ -32,10 +32,9 @@ eqasByYear <- eqaAll %>%
   unique() %>%
   group_by(year, pid) %>%
   mutate(n = n()) %>%
-  mutate(eqa = ifelse(n == 1, 'none', eqa)) %>%
+  mutate(extraEqa = ifelse(n == 1, 'none', as.character(eqa))) %>%
+  mutate(eqa = NULL) %>%
   mutate(n = NULL) 
-
-colnames(eqasByYear)[3] <- 'extraEqa'
 
 byParticipate <- eqaAll %>%
   left_join(eqasByYear, by=c('year' = 'year', 'pid' = 'pid')) %>%

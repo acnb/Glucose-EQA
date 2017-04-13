@@ -1,14 +1,14 @@
-params.single.devices <- eqaAll %>%
-  group_by(eqa, gid, rmv) %>%
+ params.single.devices <- eqaAll %>%
+  group_by(eqa, device, rmv) %>%
   filter(n() > 7) %>%
   summarise(sd = getSfromAlgA(value), 
             sdE = getStErrorForS(value),
             targetAlgA = getMufromAlgA(value), n=n()) %>%
-  group_by(eqa, gid) %>%
+  group_by(eqa, device) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
   mutate(cv = sd/targetAlgA) %>%
-  mutate(uniqueDevice = paste0(eqa, ' - ', gid))
+  mutate(uniqueDevice = paste0(eqa, ': ', device))
 
 
 param.char.func <- ddply(params.single.devices, c('uniqueDevice'), 
@@ -89,9 +89,9 @@ ggsave(paste0(base.dir, 'fig/residsCharFunc.png'),
        dpi = 600, width = 176, height= 176, units='mm')
 
 cv.by.device <- eqaAll %>%
-  group_by(eqa, gid, rmv) %>%
+  group_by(eqa, device, rmv) %>%
   filter(n() > 7) %>%
-  mutate(uniqueDevice = paste0(eqa, ' - ', gid)) %>%
+  mutate(uniqueDevice = paste0(eqa, ': ', device)) %>%
   filter(uniqueDevice %in% param.char.func$uniqueDevice) %>%
   summarise(sd = getSfromAlgA(value), 
             sdE = getStErrorForS(value),
