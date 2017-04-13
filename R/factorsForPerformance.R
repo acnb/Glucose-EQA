@@ -33,12 +33,17 @@ eqasByYear <- eqaAll %>%
   group_by(year, pid) %>%
   mutate(n = n()) %>%
   mutate(extraEqa = ifelse(n == 1, 'none', as.character(eqa))) %>%
+  ungroup() %>%
+  mutate(extraEqa = factor(extraEqa, 
+                           levels = c("none",  
+                                      "Instand 800", "Instand 111", "Instand 100",
+                                      "RfB GL", "RfB KS"))) %>%
   mutate(eqa = NULL) %>%
   mutate(n = NULL) 
 
 byParticipate <- eqaAll %>%
   left_join(eqasByYear, by=c('year' = 'year', 'pid' = 'pid')) %>%
-  filter(extraEqa != eqa) %>%
+  filter(as.character(extraEqa) != as.character(eqa)) %>%
   group_by(eqa, extraEqa, status) %>%
   summarise(n=n()) %>%
   mutate(p=n/sum(n))
@@ -89,70 +94,54 @@ pByPrevEQA <- ggplot(byPrevEQA, aes(x=status.prev, y=p, fill=status)) +
   theme_Publication(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
-########################
+####################
 
-varLots <- lots %>%
-  filter(!is.na(value)) %>%
-  group_by(year, round, sample, lot, gid) %>%
-  mutate(n= n()) %>%
-  group_by(round, sample, gid, year) %>%
-  filter(max(n) > 10) %>%
-  mutate(sd =  getSfromAlgA(value), n_all = n()) %>%
-  group_by(round, sample, lot, gid, year) %>%
-  summarise(sd_lot = getSfromAlgA(value), 
-            sd_lot_e = getStErrorForS(value),
-            n_lot = n(),
-            sd_all = sd[1], 
-            n_all = n_all[1]) %>%
-  mutate(perc = sd_lot/sd_all) %>%
-  filter(!is.na(perc))
+byDistFromRMW <- eqaAll %>%
+  filter(eqa %in% c('Instand 111', 'Instand 800', 'RfB GL')) %>%
+  mutate(dist = abs(target - rmv)/rmv) %>%
+  mutate(absDiff = abs(relDiff)) %>%
+  mutate(status.single = ifelse(absDiff > .15 | is.na(absDiff), 'fail',
+                         ifelse(absDiff > .1, 'poor', 'good'))) %>%
+  mutate(distGrp = cut(dist, breaks=seq.int(0,1,.2), include.lowest = TRUE)) %>%
+  mutate(distGrp = fct_explicit_na(distGrp, '(1,Inf)')) %>%
+  mutate(status.single = factor(status.single, levels=c('fail', 'poor', 'good')))
 
-vl <- varLots %>%
-  ungroup() %>%
-  filter(!is.na(lot))
+byDistFromRMWPerc <- byDistFromRMW %>%
+  group_by(eqa, distGrp, status.single) %>%
+  summarise(n=n()) %>%
+  mutate(p=n/sum(n)) %>%
+  ungroup()
+
+byDistFromRMWLabels <- byDistFromRMW %>%
+  group_by(eqa, distGrp) %>%
+  summarise(n=n()) %>%
+  group_by(eqa) %>%
+  mutate(p=n/sum(n)) %>%
+  mutate(label = paste0(n, "\n(", round(p,4)*100, '%)')) %>% 
+  ungroup()
+
+byDistFromRMWPVal <- byDistFromRMW %>%
+  group_by(eqa) %>%
+  summarise(p = wilcox.test(absDiff[distGrp == 1], 
+                            absDiff[distGrp != 1])$p.value)
 
 
-############################
 
-frequentLots <- lots %>%
-  filter(!is.na(value)) %>%
-  filter(!is.na(lot)) %>%
-  filter(abs(relDiff) < .5) %>%
-  group_by(round, sample, lot, gid, year) %>%
-  mutate(n_in_lot = n()) %>%
-  filter(n_in_lot > 7) %>%
-  group_by(round, sample, gid, year) %>%
-  filter(n_distinct(lot) > 1)
-
-diffBetweenLots <- ddply(frequentLots, 
-                         c("round", "sample", "gid", "year"),  function(x){
-               quantilesFromA(x)
-             })
-
-diffBetweenLots <- diffBetweenLots[order(diffBetweenLots$all, decreasing = F),]
-diffBetweenLots$over <- ifelse(diffBetweenLots$all > 0.05, 'o', 'u')
-
-diffBetweenLots$id <- as.factor(1:nrow(diffBetweenLots))
-
-save(file=paste0(base.dir, 'generated/diffsInLots.RData'), diffBetweenLots)
-
-pLots <- ggplot(diffBetweenLots, 
-                aes(x=id, y=all, ymin=p025, ymax=p975, fill=over))+ 
-  geom_pointrange(shape=21, size=.2)  + 
-  coord_flip() +
-  scale_fill_manual(values=c('o'= 'black', 'u' = 'white')) +
-  scale_y_continuous(labels=percent) +
+pByDistFromRMW <-  ggplot() +
+  geom_point(data = byDistFromRMWPerc, 
+             aes(x=distGrp, y=p, color=status.single)) +
+  facet_grid(~eqa) +
+  scale_color_manual(values=colors.status) +
+  # geom_text(data=byDistFromRMWLabels, 
+  #           aes(x=distGrp, y=.98, label=label), size=2) +
+  scale_y_continuous(labels=percent)+
+  ylab('percentage') +
+  xlab('relative difference between assigned and reference method value')+
   theme_Publication(base_size = 10) +
-  theme(axis.text.y=element_blank(),  
-        axis.ticks.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.major.y = element_blank(),
-        legend.position="none") +
-  xlab('') +
-  ylab("maximum difference between lots\n in same EQA round")
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
 
-################
+####################
 library(grid)
 library(gridExtra)
 
@@ -169,7 +158,7 @@ grid_arrange_shared_legend <- function(...) {
     heights = unit.c(unit(1, "npc") - lheight, lheight))
 }
 
-g <- grid_arrange_shared_legend(pBySeqEQA, pByParticipate, pByPrevEQA, pLots)
+g <- grid_arrange_shared_legend(pBySeqEQA, pByParticipate, pByPrevEQA, pByDistFromRMW)
 ggsave(paste0(base.dir, 'fig/factorsForPerformance.png'),
        g,  dpi = 600, width = 176, height= 150, units='mm')
 
