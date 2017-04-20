@@ -1,3 +1,5 @@
+library(forcats)
+
 bySeqEQA <- eqaAll %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
@@ -96,8 +98,9 @@ pByPrevEQA <- ggplot(byPrevEQA, aes(x=status.prev, y=p, fill=status)) +
 
 ####################
 
-byDistFromRMW <- eqaAll %>%
-  filter(eqa %in% c('Instand 111', 'Instand 800', 'RfB GL')) %>%
+byDistFromRMV <- eqaAll %>%
+  filter(eqa %in% c('Instand 800', 'RfB GL')) %>%
+  filter(target != rmv) %>%
   mutate(dist = abs(target - rmv)/rmv) %>%
   mutate(absDiff = abs(relDiff)) %>%
   mutate(status.single = ifelse(absDiff > .15 | is.na(absDiff), 'fail',
@@ -106,13 +109,13 @@ byDistFromRMW <- eqaAll %>%
   mutate(distGrp = fct_explicit_na(distGrp, '(1,Inf)')) %>%
   mutate(status.single = factor(status.single, levels=c('fail', 'poor', 'good')))
 
-byDistFromRMWPerc <- byDistFromRMW %>%
+byDistFromRMVPerc <- byDistFromRMV %>%
   group_by(eqa, distGrp, status.single) %>%
   summarise(n=n()) %>%
   mutate(p=n/sum(n)) %>%
   ungroup()
 
-byDistFromRMWLabels <- byDistFromRMW %>%
+byDistFromRMVLabels <- byDistFromRMV %>%
   group_by(eqa, distGrp) %>%
   summarise(n=n()) %>%
   group_by(eqa) %>%
@@ -120,20 +123,20 @@ byDistFromRMWLabels <- byDistFromRMW %>%
   mutate(label = paste0(n, "\n(", round(p,4)*100, '%)')) %>% 
   ungroup()
 
-byDistFromRMWPVal <- byDistFromRMW %>%
+byDistFromRMVPVal <- byDistFromRMV %>%
   group_by(eqa) %>%
-  summarise(p = wilcox.test(absDiff[distGrp == 1], 
-                            absDiff[distGrp != 1])$p.value)
+  summarise(p = wilcox.test(absDiff[distGrp == '[0,0.2]'], 
+                            absDiff[distGrp != '[0,0.2]'])$p.value)
 
 
 
-pByDistFromRMW <-  ggplot() +
-  geom_point(data = byDistFromRMWPerc, 
+pbyDistFromRMV <-  ggplot() +
+  geom_point(data = byDistFromRMVPerc, 
              aes(x=distGrp, y=p, color=status.single)) +
   facet_grid(~eqa) +
   scale_color_manual(values=colors.status) +
-  # geom_text(data=byDistFromRMWLabels, 
-  #           aes(x=distGrp, y=.98, label=label), size=2) +
+  # geom_text(data=byDistFromRMVPerc, 
+  #            aes(x=distGrp, y=p, label=n), size=2) +
   scale_y_continuous(labels=percent)+
   ylab('percentage') +
   xlab('relative difference between assigned and reference method value')+
@@ -158,7 +161,7 @@ grid_arrange_shared_legend <- function(...) {
     heights = unit.c(unit(1, "npc") - lheight, lheight))
 }
 
-g <- grid_arrange_shared_legend(pBySeqEQA, pByParticipate, pByPrevEQA, pByDistFromRMW)
+g <- grid_arrange_shared_legend(pBySeqEQA, pByParticipate, pByPrevEQA, pbyDistFromRMV)
 ggsave(paste0(base.dir, 'fig/factorsForPerformance.png'),
        g,  dpi = 600, width = 176, height= 150, units='mm')
 
