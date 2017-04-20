@@ -1,20 +1,17 @@
 statsBySample <- eqaAll %>% group_by(eqa, year, round, split, sample) %>%
   summarise(n=n(), mean = mean(value, na.rm=T), 
-            median=median(value, na.rm=T), target=target[1])
+            median=median(value, na.rm=T), target=target[1],
+            p = sum(abs(relDiff) <= .15)/n())
 
 statsByRound.Split <- eqaAll %>% group_by(eqa, year, round, split, pid) %>%
-  summarise(passed = ifelse(!(NA %in% value) & 
-                              max(abs(relDiff)) <= .15 &
-                              n() == 2, TRUE, FALSE)) %>%
+  summarise(status = min(status)) %>%
   group_by(eqa, year, round, split) %>%
-  summarise(n = n(), p = sum(passed)/n())
+  summarise(n = n(), p = sum(status != 'fail')/n())
 
 statsByRound.All <- eqaAll %>% group_by(eqa, year, round, pid) %>%
-  summarise(passed = ifelse(!(NA %in% value) & 
-                              max(abs(relDiff)) <= .15 &
-                              n() == 2, TRUE, FALSE)) %>%
+  summarise(status = min(status)) %>%
   group_by(eqa, year, round) %>%
-  summarise(n = n(), p = sum(passed)/n())
+  summarise(n = n(), p = sum(status != 'fail')/n())
 
 for(e in unique(eqaAll$eqa)){
   rtf<-RTF(paste0(base.dir,'tab/', e, ' - statsBySample.rtf'))
