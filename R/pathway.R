@@ -5,40 +5,40 @@ replaceNA <- function(x){
 
 failedYears <- eqaAll %>%
   filter(year < 2015) %>%
-  select(pid, eqa, year, status, gid, round) %>%
+  select(pid, eqa, year, status, device, round) %>%
   unique() %>%
   group_by(pid, eqa, year) %>%
   summarise(failedYear = ifelse(sum(status == 'fail') > 1, TRUE, FALSE),
-            p.gid1 = unique(gid[status != 'fail'])[1], 
-            p.gid2 = unique(gid[status != 'fail'])[2],
-            p.gid3 = unique(gid[status != 'fail'])[3], 
-            p.gid4 = unique(gid[status != 'fail'])[4],
-            f.gid1 = unique(gid[status == 'fail'])[1],
-            f.gid2 = unique(gid[status == 'fail'])[2],
-            f.gid3 = unique(gid[status == 'fail'])[3],
-            f.gid4 = unique(gid[status == 'fail'])[4]) %>%
+            p.device1 = unique(device[status != 'fail'])[1], 
+            p.device2 = unique(device[status != 'fail'])[2],
+            p.device3 = unique(device[status != 'fail'])[3], 
+            p.device4 = unique(device[status != 'fail'])[4],
+            f.device1 = unique(device[status == 'fail'])[1],
+            f.device2 = unique(device[status == 'fail'])[2],
+            f.device3 = unique(device[status == 'fail'])[3],
+            f.device4 = unique(device[status == 'fail'])[4]) %>%
   filter(failedYear) %>%
   ungroup() %>%
   mutate(prevYear = year, year=year+1) %>%
-  mutate_at(vars(p.gid1, p.gid2, p.gid3, p.gid4, 
-                 f.gid1, f.gid2, f.gid3, f.gid4), 
+  mutate_at(vars(p.device1, p.device2, p.device3, p.device4, 
+                 f.device1, f.device2, f.device3, f.device4), 
             as.character) %>%
-  mutate_at(vars(p.gid1, p.gid2, p.gid3, p.gid4, 
-                 f.gid1, f.gid2, f.gid3, f.gid4), 
+  mutate_at(vars(p.device1, p.device2, p.device3, p.device4, 
+                 f.device1, f.device2, f.device3, f.device4), 
             replaceNA)
 
 
 allYears <- eqaAll %>%
-  select(pid, eqa, year, status, gid, round, relDiff) %>%
+  select(pid, eqa, year, status, device, round, relDiff) %>%
   group_by(pid, eqa, year) %>%
   summarise(nFailure = sum(status == 'fail'),
-            gid1 = unique(gid)[1], gid2 = unique(gid)[2],
-            gid3 = unique(gid)[3], gid4 = unique(gid)[4],
+            device1 = unique(device)[1], device2 = unique(device)[2],
+            device3 = unique(device)[3], device4 = unique(device)[4],
             maxDiff = max(abs(relDiff), na.rm = T)) %>%
   ungroup() %>%
-  mutate_at(vars(gid1, gid2, gid3, gid4), 
+  mutate_at(vars(device1, device2, device3, device4), 
             as.character) %>%
-  mutate_at(vars(gid1, gid2, gid3, gid4), 
+  mutate_at(vars(device1, device2, device3, device4), 
             replaceNA)
 
 actOnFailed <- failedYears %>% 
@@ -48,11 +48,11 @@ actOnFailed <- failedYears %>%
                       ifelse(nFailure == 0, 'cont.Good', 'cont.Fail'))) %>%
   rowwise() %>%
   mutate(devChange = ifelse(
-    length(intersect(c(f.gid1, f.gid2, f.gid3, f.gid4), 
-                     c(gid1, gid2, gid3, gid4))) == 0, TRUE, FALSE
+    length(intersect(c(f.device1, f.device2, f.device3, f.device4), 
+                     c(device1, device2, device3, device4))) == 0, TRUE, FALSE
   )) %>%
-  mutate(sumNewDevs = sum(! c(gid1, gid2, gid3, gid4) %in%
-                            c(f.gid1, f.gid2, f.gid3, f.gid4, ''))) %>%
+  mutate(sumNewDevs = sum(! c(device1, device2, device3, device4) %in%
+                            c(f.device1, f.device2, f.device3, f.device4, ''))) %>%
   ungroup()
 
 actOnFailed.All <- actOnFailed %>% 
@@ -66,8 +66,8 @@ actOnFailed.dry <- actOnFailed %>%
   filter(act != 'leftEQA') %>% ungroup() %>% as.data.frame()
 
 nextYearDevs <- adply(actOnFailed.dry, 1, function(x){
-  fDev <- unique(c(x$f.gid1, x$f.gid2, x$f.gid3, x$f.gid4))
-  nDev <- unique(c(x$gid1, x$gid2, x$gid3, x$gid4))
+  fDev <- unique(c(x$f.device1, x$f.device2, x$f.device3, x$f.device4))
+  nDev <- unique(c(x$device1, x$device2, x$device3, x$device4))
   fDev <- fDev[!is.na(fDev) & fDev != '']
   nDev <- nDev[!is.na(nDev) & nDev != '']
   
