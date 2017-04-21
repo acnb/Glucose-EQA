@@ -9,14 +9,18 @@ quant <- eqaAll %>%
 ymax = .05
 
 poly <- data.frame(x = c(quant$x, quant$x[nrow(quant):1]), 
-                   eqa = c(quant$eqa, quant$eqa[nrow(quant):1]),
+                   eqa = levels(eqaAll$eqa)[
+                     c(quant$eqa, quant$eqa[nrow(quant):1])],
                    y=c(rep.int(0, nrow(quant)),
                        rep.int(ymax, nrow(quant))))
 
-ggplot(eqaAll %>%
-         filter(!is.na(relDiff)) %>%
-         filter(abs(relDiff) < .5), aes(x=relDiff)) +
-  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .01) +
+eqaData <- eqaAll %>%
+  filter(!is.na(relDiff)) %>%
+  filter(abs(relDiff) < .5)
+
+ggplot() +
+  geom_histogram(data = eqaData, aes(x=relDiff, y = (..count..)/sum(..count..)), 
+                 binwidth = .01) +
   scale_x_continuous(limits = c(-.3,.3), labels=percent) +
   geom_polygon(data = poly, aes(x=x, y=y), 
                fill = "red", alpha=.1) +
