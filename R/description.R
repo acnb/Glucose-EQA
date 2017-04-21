@@ -1,13 +1,17 @@
 library(rtf)
 
 descriptionRV <- eqaAll %>%
-  select(eqa, year, round, pid, status) %>%
+  group_by(eqa) %>%
+  mutate(allParticipants = n_distinct(pid)) %>%
+  ungroup() %>%
+  select(eqa, year, round, pid, status, allParticipants) %>%
   distinct() %>%
   group_by(eqa, year, round) %>%
   summarise(participants = n_distinct(pid),
-            successRate = sum(status != 'fail')/n()) %>%
+            successRate = sum(status != 'fail')/n(), 
+            allParticipants = allParticipants[1]) %>%
   group_by(eqa) %>%
-  summarise(allParticipants = sum(participants),
+  summarise(allParticipants = allParticipants[1],
             minParticipants = min(participants),
             meanParticipants = round(mean(participants)),
             maxParticipants = max(participants),
@@ -21,7 +25,8 @@ descriptionSamples <- eqaAll %>%
   summarise(samples = n(), 
             minValue = min(target),
             meanValue = round(mean(target), 2),
-            maxValue = max(target)) %>%
+            maxValue = max(target),
+            roundsPerYear = max(round)) %>%
   ungroup() 
 
 descrAll <- rbind(t(descriptionRV), t(descriptionSamples))
