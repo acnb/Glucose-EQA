@@ -34,6 +34,9 @@ eqaAll <- eqaAll %>%
                          ifelse(max(abs(relDiff)) > .1, 'poor', 
                                 'good'))) %>%
   ungroup() %>%
+  mutate(split = ifelse(eqa=='Instand 800' & year == '2011' & 
+                          round == 2 & split %in% c('83', '84'), 
+         '83+84', split)) %>%
   mutate(eqaRound = paste0(eqa, '-', year, '-', round)) %>%
   mutate(status = factor(status, levels=c('fail', 'poor', 'good'), ordered = TRUE),
          eqa = factor(eqa),
