@@ -38,9 +38,17 @@ eqaAll <- eqaAll %>%
                           round == 2 & split %in% c('83', '84'), 
          '83+84', split)) %>%
   mutate(eqaRound = paste0(eqa, '-', year, '-', round)) %>%
+  left_join(sharedDevs, by=c('device' = 'devRfB')) %>%
+  mutate(sharedDevice = ifelse(eqa == 'RfB GL' & !is.na(devInstand),
+                               devInstand, NA)) %>%
+  mutate(sharedDevice = ifelse(eqa == 'Instand 800' & 
+                                 device %in% sharedDevs$devInstand,
+          device, sharedDevice)) %>%
   mutate(status = factor(status, levels=c('fail', 'poor', 'good'), ordered = TRUE),
          eqa = factor(eqa),
          device = factor(device),
+         sharedDevice = factor(sharedDevice),
+         devInstand = NULL,
          eqaRound = factor(eqaRound),
          year = as.numeric(year),
          round = as.numeric(round)) 

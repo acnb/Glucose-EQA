@@ -1,14 +1,15 @@
  params.single.devices <- eqaAll %>%
-  group_by(eqa, device, rmv) %>%
+  filter(!is.na(sharedDevice)) %>%
+  group_by(eqa, sharedDevice, rmv) %>%
   filter(n() > 7) %>%
   summarise(sd = getSfromAlgA(value), 
             sdE = getStErrorForS(value),
             targetAlgA = getMufromAlgA(value), n=n()) %>%
-  group_by(eqa, device) %>%
+  group_by(eqa, sharedDevice) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
   mutate(cv = sd/targetAlgA) %>%
-  mutate(uniqueDevice = paste0(eqa, ': ', device))
+  mutate(uniqueDevice = paste0(sharedDevice, "\n(", eqa, ')'))
 
 
 param.char.func <- ddply(params.single.devices, c('uniqueDevice'), 
@@ -51,9 +52,9 @@ ggplot() +
   geom_point(data = params.single.devices, 
              aes(x=targetAlgA, y=cv, alpha=w)) +
   geom_line(data=lines.char.func, aes(x=x, y=y)) +
-  facet_wrap(~uniqueDevice, scales = 'free_y') +
+  facet_wrap(~uniqueDevice) +
   theme_Publication(base_size = 10) + 
-  theme(legend.position="none") +
+  theme(legend.position="none", strip.text.x = element_text(size = 6)) +
   ggtitle('characteristic function for device subgroups') +
   xlab('assigned value') +
   ylab('coefficient of variation')
@@ -89,13 +90,15 @@ ggsave(paste0(base.dir, 'fig/residsCharFunc.png'),
        dpi = 600, width = 176, height= 176, units='mm')
 
 cv.by.device <- eqaAll %>%
-  group_by(eqa, device, rmv) %>%
+  filter(!is.na(sharedDevice)) %>%
+  group_by(eqa, sharedDevice, rmv) %>%
   filter(n() > 7) %>%
-  mutate(uniqueDevice = paste0(eqa, ': ', device)) %>%
+  mutate(uniqueDevice = paste0(sharedDevice, "\n(", eqa, ')')) %>%
   filter(uniqueDevice %in% param.char.func$uniqueDevice) %>%
   summarise(sd = getSfromAlgA(value), 
             sdE = getStErrorForS(value),
-            targetAlgA = getMufromAlgA(value)) %>%
+            targetAlgA = getMufromAlgA(value),
+            uniqueDevice = uniqueDevice[1]) %>%
   mutate(cv = sd/targetAlgA) %>%
   group_by(uniqueDevice) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
