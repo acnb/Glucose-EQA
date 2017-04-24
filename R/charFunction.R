@@ -107,7 +107,8 @@ cv.by.device <- eqaAll %>%
 
 cv.by.device <- cv.by.device %>%
   left_join(param.char.func, by=c('uniqueDevice' = 'uniqueDevice')) %>%
-  select(uniqueDevice, mean.cv.w, mean.cv, a, b)
+  select(uniqueDevice, mean.cv.w, mean.cv, a, b) %>%
+  mutate_at(vars(mean.cv.w, mean.cv, a, b), round, digits=3)
 
 rtf<-RTF(paste0(base.dir,'tab/precision.rtf'))
 addTable(rtf,cv.by.device)
