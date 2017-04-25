@@ -30,9 +30,13 @@ eqaAll <- eqaAll %>%
                                   round == '3' & sample == '2' & split == '90') &
                               !(eqa == 'Instand 800' & year == '2012' &
                                   round == '3' & sample == '2' & split == '60')) 
-                           ), 'fail',
-                         ifelse(max(abs(relDiff)) > .1, 'poor', 
-                                'good'))) %>%
+                           ), 'failed',
+                         ifelse(
+                          max((abs(value-target)-2)/target) > .1,
+                           'poor',
+                          ifelse(
+                           max((abs(value-target)-2)/target) > .05,
+                             'acceptable', 'good')))) %>%
   ungroup() %>%
   mutate(split = ifelse(eqa=='Instand 800' & year == '2011' & 
                           round == 2 & split %in% c('83', '84'), 
@@ -46,7 +50,9 @@ eqaAll <- eqaAll %>%
           device, sharedDevice)) %>%
   mutate(sharedDevice = ifelse(eqa == 'RfB KS', 
                                paste0(eqa, ': ',device), sharedDevice)) %>%
-  mutate(status = factor(status, levels=c('fail', 'poor', 'good'), ordered = TRUE),
+  mutate(status = factor(status, 
+                         levels=c('failed', 'poor', 'acceptable', 'good'),
+                         ordered = TRUE),
          eqa = factor(eqa),
          device = factor(device),
          sharedDevice = factor(sharedDevice),
@@ -60,11 +66,6 @@ lots <- lots %>%
   group_by(id) %>%
   filter(n() == 2) %>%
   mutate(relDiff = (value-target)/target) %>%
-  mutate(status = ifelse(max(abs(relDiff)) > .15 | 
-                           NA %in% relDiff, 'fail',
-                         ifelse(max(abs(relDiff)) > .1, 'poor', 
-                                'good'))) %>%
   ungroup() %>%
-  mutate(status = factor(status, levels=c('fail', 'poor', 'good')),
-         year = as.numeric(year),
+  mutate(year = as.numeric(year),
          round = as.numeric(round)) 

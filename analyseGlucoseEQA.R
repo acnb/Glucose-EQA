@@ -6,9 +6,10 @@ source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
 
 
 base.dir <- '~/RCode/Glucose-EQA/'
-colors.status <- c('fail' = "#F8766D",
-                  'poor' = "#619CFF",
-                  'good' =   "#00BA38")
+colors.status <- c('failed' = "#d7191c",
+                  'poor' = "#fdae61",
+                  'acceptable' = '#2b83ba',
+                  'good' =   "#abdda4")
 
 load(paste0(base.dir, 'data/eqa.RData'))
 load(paste0(base.dir, 'data/lots.RData'))
