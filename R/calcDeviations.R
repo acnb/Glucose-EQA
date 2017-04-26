@@ -50,6 +50,10 @@ eqaAll <- eqaAll %>%
           device, sharedDevice)) %>%
   mutate(sharedDevice = ifelse(eqa == 'RfB KS', 
                                paste0(eqa, ': ',device), sharedDevice)) %>%
+  mutate(sharedDevice = ifelse(eqa == 'RfB GL' & split == 'Anderes Gerät', 
+                               'others', sharedDevice)) %>%
+  mutate(sharedDevice = ifelse(eqa == 'Instand 800' & split == '90', 
+                               'others', sharedDevice)) %>%
   mutate(status = factor(status, 
                          levels=c('failed', 'poor', 'acceptable', 'good'),
                          ordered = TRUE),
