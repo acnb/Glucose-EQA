@@ -4,8 +4,10 @@ byDistFromRMV <- eqaAll %>%
   filter(!(eqa=='RfB GL' & split == 'Anderes Gerät')) %>%
   mutate(dist = (target - rmv)/rmv) %>%
   mutate(absDiff = abs(relDiff)) %>%
-  mutate(status.single = ifelse(absDiff > .15 | is.na(absDiff), 'fail',
-                         ifelse(absDiff > .1, 'poor', 'good'))) %>%
+  mutate(status.single = ifelse(absDiff > .15 | is.na(absDiff), 'failed',
+                         ifelse((abs(value-target)-2)/target > .1, 'poor', 
+                         ifelse((abs(value-target)-2)/target > .05, 'acceptable',
+                         'good')))) %>%
   mutate(distGrp = ifelse(dist < -.3, '[-Inf, -0.3)',
                    ifelse(dist < -.1, '[-0.3, -0.1)',
                    ifelse(dist < .1, '[-0.1, 0.1)',
@@ -15,7 +17,8 @@ byDistFromRMV <- eqaAll %>%
                           levels= c('[-Inf, -0.3)', '[-0.3, -0.1)', '[-0.1, 0.1)',
                                     '[0.1, 0.3)', '[0.3, 0.5)', '[0.5, Inf]'),
                           ordered = TRUE)) %>%
-  mutate(status.single = factor(status.single, levels=c('fail', 'poor', 'good')))
+  mutate(status.single = factor(status.single, levels=c('failed', 'poor', 
+                                                      'acceptable',  'good')))
 
 byDistFromRMVPerc <- byDistFromRMV %>%
   group_by(eqa) %>%
@@ -52,7 +55,7 @@ pbyDistFromRMV <-  ggplot() +
                                              color=status.single),
                outlier.shape = NA) +
   geom_text(data=nBySplitAndDistGroup,
-             aes(x=distGrp, y=1.1, label=label), size=1.5) +
+             aes(x=distGrp, y=1.1, label=label)) +
   facet_grid(~eqa) +
   scale_color_manual(values=colors.status) +
 
@@ -64,3 +67,5 @@ pbyDistFromRMV <-  ggplot() +
   theme_Publication(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggsave(paste0(base.dir, 'fig/byDistFromRMV.png'),
+       pbyDistFromRMV,  dpi = 600, width = 176, height= 150, units='mm')
