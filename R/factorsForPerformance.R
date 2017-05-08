@@ -1,14 +1,14 @@
 library(forcats)
 
-calcOdds <- function(data, x){
-  ddply(data %>% as.data.frame(),
-        c('eqa', 'outcome'), function(d){
-          form <- as.formula(paste0('realised~', x))
+calcOdds <- function(data, x, y){
+  o <- ddply(data %>% as.data.frame(),
+        c('eqa'), function(d){
+          form <- as.formula(paste0(y, '~', x))
           fit <- 
             glm(form, data=d, 
                 family = binomial(link = "logit"))
           odds <- 
-            exp(cbind(beta = coef(fit), confint(fit)))
+            exp(cbind(odds = coef(fit), confint(fit)))
           
           odds <- as.data.frame(odds)
           odds$var <- row.names(odds)
@@ -29,6 +29,8 @@ calcOdds <- function(data, x){
           
           odds
         }) 
+  colnames(o) <- make.names(colnames(o))
+  o
 }
 
 ##############
@@ -53,12 +55,13 @@ bySeqEQALog <- bySeqEQAAll %>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
   select(eqa, id, seq, seqGrp, good, notFailed) %>%
-  unique() %>%
-  gather(outcome, realised, good, notFailed)
+  unique()
 
 
-oddsSeqEQA <- rbind(calcOdds(bySeqEQALog, 'seqGrp'),
-                    calcOdds(bySeqEQALog, 'seq'))
+oddsSeqGrpEQAGood <- calcOdds(bySeqEQALog, 'seqGrp', 'good')
+oddsSeqGrpEQNotFailed <- calcOdds(bySeqEQALog, 'seqGrp', 'notFailed')
+oddsSeqEQAGood <- calcOdds(bySeqEQALog, 'seq', 'good')
+oddsSeqEQANotFailed <- calcOdds(bySeqEQALog, 'seq', 'notFailed')               
 
 bySeqEQAGraph <- bySeqEQAAll %>%
   group_by(eqa, seqGrp, status) %>%
@@ -85,7 +88,7 @@ ggsave(paste0(base.dir, 'fig/bySeqEQA.png'),
 ################
 
 eqasByYear <- eqaAll %>%
-  select(year, pid, eqa) %>%
+  dplyr::select(year, pid, eqa) %>%
   unique() %>%
   group_by(year, pid) %>%
   mutate(n = n()) %>%
@@ -112,11 +115,10 @@ byParticipateGraph <- byParticipateAll %>%
 byParticipateLog <- byParticipateAll %>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
-  dplyr::select(eqa, id, extraEqa, good, notFailed) %>%
-  unique() %>%
-  gather(outcome, realised, good, notFailed)
+  dplyr::select(eqa, id, extraEqa, good, notFailed)
 
-oddsParticipate <- calcOdds(byParticipateLog, extraEqa)
+oddsParticipateGood <- calcOdds(byParticipateLog, 'extraEqa', 'good')
+oddsParticipateNotFailed <- calcOdds(byParticipateLog, 'extraEqa', 'notFailed')
 
 
 pByParticipate <- ggplot(byParticipateGraph, aes(x=extraEqa, 
@@ -162,19 +164,14 @@ byPrevEQAGraph <- byPrevEQAAll%>%
 
 byPrevEQALog <- byPrevEQAAll%>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
-  mutate(failed = ifelse(status == 'failed', 1, 0)) %>%
-  select(eqa, id, status.prev, good, failed) %>%
+  mutate(notFailed = ifelse(status == 'failed', 0, 1)) %>%
+  select(eqa, id, status.prev, good, notFailed) %>%
   unique() %>%
-  mutate(status.prev = factor(status.prev, ordered= FALSE)) %>%
-  gather(outcome, realised, good, failed)
+  mutate(status.prev = factor(status.prev, ordered=FALSE)) %>%
+  mutate(status.prev = fct_relevel(status.prev, 'acceptable'))
 
-oddsPrevEQAGood <- calcOdds(byPrevEQALog %>% 
-                           filter(outcome == 'good'), 'status.prev')
-
-oddsPrevEQAFail <- calcOdds(byPrevEQALog %>% 
-                           filter(outcome == 'failed') %>%
-                           mutate(status.prev = relevel(status.prev, 'good')), 
-                           'status.prev')
+oddsPrevEQAGood <- calcOdds(byPrevEQALog, 'status.prev', 'good')
+oddsPrevEQANotFailed <- calcOdds(byPrevEQALog, 'status.prev', 'notFailed')
 
 
 pByPrevEQA <- ggplot(byPrevEQAGraph, aes(x=status.prev, y=p, fill=status)) +
@@ -192,7 +189,72 @@ ggsave(paste0(base.dir, 'fig/byPrevEQA.png'),
 
 
 ####################
-byMulti <- eqaAll %>%
+
+
+eqaAllMulti <- eqaAll %>%
+  filter(abs(value-rmv)/rmv < .5) %>%
+  group_by(eqa, year, round, sample, device) %>%
+  filter(n() > 8) %>%
+  mutate(target = ifelse(eqa == 'Instand 800' | eqa == 'RfB GL', median(value), target)) %>%
+  filter(abs(target-rmv)/rmv < .3) %>%
+  group_by(id) %>%
+  mutate(relDiff = (value-target)/target) %>%
+  mutate(status = ifelse(max(abs(relDiff)) > .15 |  ((n() < 2) & (
+    !(eqa == 'Instand 100' & year == '2015' & 
+        round == '3') &
+      !(eqa == 'Instand 111' & year == '2015' &
+          round == '3' & sample == '1') &
+      !(eqa == 'Instand 111' & year == '2015' &
+          round == '4' & sample == '1') &
+      !(eqa == 'Instand 800' & year == '2011' &
+          round == '3' & sample == '2' & split == '76') &
+      !(eqa == 'Instand 800' & year == '2011' &
+          round == '3' & sample == '1' & split == '74') &
+      !(eqa == 'Instand 800' & year == '2015' &
+          round == '4' & sample == '2' & split == '30') &
+      !(eqa == 'Instand 800' & year == '2011' &
+          round == '6' & sample == '2' & split == '80') &
+      !(eqa == 'Instand 800' & year == '2011' &
+          round == '6' & sample == '2' & split == '76') &
+      !(eqa == 'Instand 800' & year == '2012' &
+          round == '3' & sample == '2' & split == '90') &
+      !(eqa == 'Instand 800' & year == '2012' &
+          round == '3' & sample == '2' & split == '60')) 
+  ), 'failed',
+  ifelse(
+    max((abs(value-target)-2)/target) > .1,
+    'poor',
+    ifelse(
+      max((abs(value-target)-2)/target) > .05,
+      'acceptable', 'good')))) %>%
+  ungroup()
+
+prevMulti <- eqaAllMulti %>% 
+  group_by(pid, eqa) %>%
+  mutate(seq = dense_rank(year*100+round)) %>% 
+  ungroup() %>%
+  filter(seq > 1) %>%
+  transmute(eqa = eqa, status.prev = status, seq = seq-1, pid=pid) %>%
+  distinct()  
+
+
+eqasByYearMulti <- eqaAllMulti %>%
+  dplyr::select(year, pid, eqa) %>%
+  filter(eqa != 'Instand 111') %>%
+  unique() %>%
+  group_by(year, pid) %>%
+  mutate(n = n()) %>%
+  mutate(extraEqa = ifelse(n == 1, 'none', as.character(eqa))) %>%
+  ungroup() %>%
+  mutate(extraEqa = factor(extraEqa, 
+                           levels = c("none",  
+                                      "Instand 800",  "Instand 100",
+                                      "RfB GL", "RfB KS"))) %>%
+  mutate(eqa = NULL) %>%
+  mutate(n = NULL) 
+
+
+byMulti <- eqaAllMulti %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
   filter(!(year == 2011 & seq == 1 & round < 3)) %>%
@@ -204,19 +266,151 @@ byMulti <- eqaAll %>%
   mutate(seqGrp = factor(seqGrp, levels=c('new', 'intermediate', 'experienced', 
                                           ordered = TRUE))) %>%
   ungroup() %>%
-  left_join(eqasByYear, by=c('year' = 'year', 'pid' = 'pid')) %>%
+  left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
   filter(as.character(extraEqa) != as.character(eqa)) %>%
-  left_join(prev, by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%
+  left_join(prevMulti , by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%
   filter(!is.na(status.prev)) %>%
   mutate(sharedDevice = as.character(sharedDevice)) %>%
-  mutate(sharedDevice = ifelse(is.na(sharedDevice), device, sharedDevice)) %>%
-  mutate(sharedDevice = factor(sharedDevice)) %>%
+  mutate(sharedDevice = ifelse(is.na(sharedDevice), 
+                               "others", sharedDevice)) %>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
   mutate(status.prev = factor(status.prev, ordered= FALSE)) %>%
-  select(eqa, id, seq, seqGrp, extraEqa, status.prev, sharedDevice, pid,
-         notFailed, good)
-  
-res <- glm(good~seq+seqGrp+extraEqa+status.prev+sharedDevice, 
-           data = byMulti %>% filter(eqa=='Instand 800'), 
-           family = binomial(link = "logit"))
+  mutate(centralLab = ifelse(extraEqa == 'Instand 100' | extraEqa == 'RfB KS', 'centralLab', 
+                             'none')) %>%
+  mutate(centralLab = factor(centralLab, levels=c('none', 'centralLab'))) %>%
+  dplyr::select(year, eqa, id, seq, seqGrp, centralLab, status.prev, sharedDevice, pid,
+                notFailed, good, eqaRound) %>%
+  group_by(sharedDevice, eqa) %>%
+  mutate(n = n()) %>%
+  ungroup() %>%
+  mutate(sharedDevice = ifelse(n < 30, 
+                               "others", sharedDevice)) %>%
+  mutate(sharedDevice = factor(sharedDevice), n = NULL)
+
+resMultiGood <- glm(good~seq+centralLab+status.prev+sharedDevice+eqaRound, 
+                        data = byMulti %>% 
+                          filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
+                          mutate(sharedDevice = 
+                                   fct_relevel(sharedDevice, 'others')), 
+                        family = binomial(link = "logit"))
+
+oddsMultiGood <- 
+  exp(cbind(odds = coef(resMultiGood), confint(resMultiGood)))
+
+oddsMultiGood <- as.data.frame(oddsMultiGood)
+
+oddsMultiGood$var <- row.names(oddsMultiGood)
+colnames(oddsMultiGood) <- make.names(colnames(oddsMultiGood))
+
+oddsMultiGood <- oddsMultiGood %>% 
+  filter(!is.na(X2.5..)) %>% 
+  filter(!is.na(X97.5..)) %>%
+  filter(var != '(Intercept)') %>%
+  mutate(type = ifelse(str_detect(var, 'sharedDevice'), 'device', NA)) %>%
+  mutate(type = ifelse(str_detect(var, 'status.prev'), 'previous status', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'extraEqa'), 'additional EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
+  mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  mutate(var = factor(var)) %>%
+  mutate(orderForVar = ifelse(type== 'device', odds+ 10^8,
+                              ifelse(type== 'previous status', odds+ 10^6,
+                                     ifelse(type== 'additional EQA', odds+ 10^4,
+                                            ifelse(type== 'Number of previous EQA', odds+ 10^4, 2 ))))) %>%
+  filter(!is.na(type)) %>%
+  mutate(var = fct_reorder(var, orderForVar))
+
+ggplot(oddsMultiGood,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  xlab('') +
+  geom_hline(yintercept = 1) +
+  scale_y_continuous(trans=log10_trans()) +
+  theme_Publication()
+
+ggsave(paste0(base.dir, 'fig/oddsMultiGood.png'),
+        dpi = 600, width = 176, height= 80, units='mm')
+#
+resMultiNotFailed <- glm(notFailed~seq+centralLab+status.prev+sharedDevice+eqaRound, 
+                    data = byMulti %>% 
+                      filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
+                      mutate(sharedDevice = 
+                               fct_relevel(sharedDevice, 'others')), 
+                    family = binomial(link = "logit"))
+
+oddsMultiNotFailed <- 
+  exp(cbind(odds = coef(resMultiNotFailed), confint(resMultiNotFailed)))
+
+oddsMultiNotFailed <- as.data.frame(oddsMultiNotFailed)
+
+oddsMultiNotFailed$var <- row.names(oddsMultiNotFailed)
+colnames(oddsMultiNotFailed) <- make.names(colnames(oddsMultiNotFailed))
+
+oddsMultiNotFailed <- oddsMultiNotFailed %>% 
+  filter(!is.na(X2.5..)) %>% 
+  filter(!is.na(X97.5..)) %>%
+  filter(var != '(Intercept)') %>%
+  mutate(type = ifelse(str_detect(var, 'sharedDevice'), 'device', NA)) %>%
+  mutate(type = ifelse(str_detect(var, 'status.prev'), 'previous status', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'extraEqa'), 'additional EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
+  mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  mutate(var = factor(var)) %>%
+  mutate(orderForVar = ifelse(type== 'device', odds+ 10^8,
+                              ifelse(type== 'previous status', odds+ 10^6,
+                                     ifelse(type== 'additional EQA', odds+ 10^4,
+                                            ifelse(type== 'Number of previous EQA', odds+ 10^4, 2 ))))) %>%
+  filter(!is.na(type)) %>%
+  mutate(var = fct_reorder(var, orderForVar))
+
+ggplot(oddsMultiNotFailed,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  theme_Publication()
+
+
+ggsave(paste0(base.dir, 'fig/oddsMultiNotFailed.png'),
+         dpi = 600, width = 176, height= 80, units='mm')
+
+############
+
+oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, oddsParticipateGood)
+ggplot(oddsAllGood,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  facet_grid(eqa~.) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  theme_Publication()
+
+ggsave(paste0(base.dir, 'fig/oddsAllGood.png'),
+         dpi = 600, width = 176, height= 130, units='mm')
+
+oddsAllNotFailed <- rbind(oddsPrevEQANotFailed, oddsSeqEQANotFailed, 
+                          oddsParticipateNotFailed)
+
+ggplot(oddsAllNotFailed,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  facet_grid(eqa~.) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  theme_Publication()
+
+ggsave(paste0(base.dir, 'fig/oddsAllNotFailed.png'),
+         dpi = 600, width = 176, height= 130, units='mm')
