@@ -69,3 +69,63 @@ pbyDistFromRMV <-  ggplot() +
 
 ggsave(paste0(base.dir, 'fig/byDistFromRMV.png'),
        pbyDistFromRMV,  dpi = 600, width = 176, height= 150, units='mm')
+
+#####################
+
+singleVsGroup <- eqaAll %>%
+  filter(eqa == 'Instand 800') %>%
+  filter(split != '90') %>%
+  group_by(eqa, year, round, split, sample, device) %>%
+  filter(n() > 7) %>%
+  group_by(eqa, year, round, split, sample) %>%
+  filter(n_distinct(device) > 1) %>%
+  mutate(mAll = getMufromAlgA(value)) %>%
+  group_by(eqa, year, round, split, sample, device, mAll) %>%
+  summarise(m = getMufromAlgA(value), s = getSfromAlgA(value), n= n()) %>%
+  ungroup() %>%
+  mutate(p = pnorm(q = abs(mAll-m)/2, mean = 0, s= s/sqrt(n), lower.tail = FALSE),
+         diff = abs(mAll-m)/m)
+
+ggplot(singleVsGroup, aes(x=p, y=diff, color=n))+
+  geom_point() +
+  scale_y_continuous(labels=percent)+
+  scale_x_continuous(labels=percent)+
+  scale_color_continuous(low='#ca0020', high = '#0571b0', trans='sqrt') + 
+  theme_Publication(10)+
+  theme(legend.position = 'right', legend.direction = "vertical", 
+        legend.key.height = unit(1, "cm"), 
+        legend.title = element_text()) +
+  xlab("Mathematical probability that group\n improves evaluation of single sample")+
+  ylab("Difference between device and group mean") +
+  labs(color="number of\nsamples\n") 
+
+ggsave(paste0(base.dir, 'fig/singleVsGroup.png'),
+       dpi = 600, width = 85, height= 100, units='mm')
+
+#####################
+
+algAvsMedian <- eqaAll %>%
+  filter(eqa == 'Instand 800' | eqa == 'RfB GL') %>%
+  group_by(eqa, year, round, split, sample) %>%
+  mutate(outlier = ifelse(
+    value < (1.5*(quantile(value)[2])- (quantile(value)[2])) |
+    value > (1.5*(quantile(value)[4])+ (quantile(value)[4])),
+                                         TRUE, FALSE)) %>%
+  summarise(median = median(value), algA = getMufromAlgA(value), 
+            medianO = median(value[!outlier]),
+            min=min(value), max=max(value), n=n()) %>%
+  ungroup() %>%
+  mutate(diff = (median-algA)/((median+algA)/2), 
+         diffO=(medianO-algA)/((medianO+algA)/2),
+         diffMed = (medianO-median)/((medianO+median)/2))
+
+
+ggplot(algAvsMedian, aes(x=n,y=diff))+
+  theme_Publication(10)+
+  scale_y_continuous(limits = c(-.15, .15), labels = percent) +
+  geom_point(alpha=.2) +
+  xlab('number of samples')+
+  ylab('median - algA')
+
+ggsave(paste0(base.dir, 'fig/algAvsMedian.png'),
+       dpi = 600, width = 85, height= 100, units='mm')
