@@ -8,15 +8,15 @@ failedYears <- eqaAll %>%
   select(pid, eqa, year, status, device, round) %>%
   unique() %>%
   group_by(pid, eqa, year) %>%
-  summarise(failedYear = ifelse(sum(status == 'fail') > 1, TRUE, FALSE),
-            p.device1 = unique(device[status != 'fail'])[1], 
-            p.device2 = unique(device[status != 'fail'])[2],
-            p.device3 = unique(device[status != 'fail'])[3], 
-            p.device4 = unique(device[status != 'fail'])[4],
-            f.device1 = unique(device[status == 'fail'])[1],
-            f.device2 = unique(device[status == 'fail'])[2],
-            f.device3 = unique(device[status == 'fail'])[3],
-            f.device4 = unique(device[status == 'fail'])[4]) %>%
+  summarise(failedYear = ifelse(sum(status == 'failed') > 1, TRUE, FALSE),
+            p.device1 = unique(device[status != 'failed'])[1], 
+            p.device2 = unique(device[status != 'failed'])[2],
+            p.device3 = unique(device[status != 'failed'])[3], 
+            p.device4 = unique(device[status != 'failed'])[4],
+            f.device1 = unique(device[status == 'failed'])[1],
+            f.device2 = unique(device[status == 'failed'])[2],
+            f.device3 = unique(device[status == 'failed'])[3],
+            f.device4 = unique(device[status == 'failed'])[4]) %>%
   filter(failedYear) %>%
   ungroup() %>%
   mutate(prevYear = year, year=year+1) %>%
@@ -31,7 +31,7 @@ failedYears <- eqaAll %>%
 allYears <- eqaAll %>%
   select(pid, eqa, year, status, device, round, relDiff) %>%
   group_by(pid, eqa, year) %>%
-  summarise(nFailure = sum(status == 'fail'),
+  summarise(nFailure = sum(status == 'failed'),
             device1 = unique(device)[1], device2 = unique(device)[2],
             device3 = unique(device)[3], device4 = unique(device)[4],
             maxDiff = max(abs(relDiff), na.rm = T)) %>%
