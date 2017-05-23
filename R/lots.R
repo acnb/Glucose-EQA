@@ -1,37 +1,16 @@
-########################
-
-varLots <- lots %>%
-  filter(!is.na(value)) %>%
-  group_by(year, round, sample, lot, gid) %>%
-  mutate(n= n()) %>%
-  group_by(round, sample, gid, year) %>%
-  filter(max(n) > 10) %>%
-  mutate(sd =  getSfromAlgA(value), n_all = n()) %>%
-  group_by(round, sample, lot, gid, year) %>%
-  summarise(sd_lot = getSfromAlgA(value), 
-            sd_lot_e = getStErrorForS(value),
-            n_lot = n(),
-            sd_all = sd[1], 
-            n_all = n_all[1]) %>%
-  mutate(perc = sd_lot/sd_all) %>%
-  filter(!is.na(perc))
-
-vl <- varLots %>%
-  ungroup() %>%
-  filter(!is.na(lot))
-
-
-############################
-
 frequentLots <- lots %>%
   filter(!is.na(value)) %>%
   filter(!is.na(lot)) %>%
+  mutate(lot = factor(lot)) %>%
   filter(abs(relDiff) < .5) %>%
   group_by(round, sample, lot, gid, year) %>%
   mutate(n_in_lot = n()) %>%
   filter(n_in_lot > 7) %>%
+  mutate(e = 1.253*(getSfromAlgA(value)/getMufromAlgA(value))/sqrt(n_in_lot)) %>%
+  filter(e < .025) %>%
   group_by(round, sample, gid, year) %>%
-  filter(n_distinct(lot) > 1)
+  filter(n_distinct(lot) > 1) %>%
+  ungroup()
 
 diffBetweenLots <- ddply(frequentLots, 
                          c("round", "sample", "gid", "year"),  function(x){

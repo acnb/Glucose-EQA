@@ -5,11 +5,9 @@ getSfromAlgA <- function(x){
   huberM(x)$s
 }
 
-
 getMufromAlgA <- function(x){
   huberM(x)$mu
 }
-
 
 sFromAWrapper <- function(d, i){
   getSfromAlgA(d[i])
@@ -22,7 +20,7 @@ getStErrorForS <- function(x){
 
 getMaxDiff <- function(x, idx){
   ag <- aggregate(value~lot, data = x, subset=idx, FUN=getMufromAlgA)
-  (max(ag$value, na.rm = T)  - min(ag$value, na.rm=T))/mean(ag$value, na.rm = T)
+  (max(ag$value, na.rm = T)  - min(ag$value, na.rm=T))/x$target[1]
 }
 
 quantilesFromA <- function(x){
