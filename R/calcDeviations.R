@@ -7,6 +7,7 @@
 eqaAll <- eqaAll %>%
   filter(!is.na(value)) %>%
   filter(value > 0) %>%
+  filter(eqa != 'Instand 111') %>%
   group_by(id) %>%
   mutate(relDiff = (value-target)/target) %>%
   mutate(status = ifelse(max(abs(relDiff)) > .15 |  ((n() < 2) & (

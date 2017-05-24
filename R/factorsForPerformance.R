@@ -1,5 +1,15 @@
 library(forcats)
 
+oddsLabels <- c('seq' = 'number of previous participations',
+                'centralLabcentralLab' = 'has central lab',
+                'poct' = 'does POCT',
+                'none' = 'no additional EQA',
+                'status.prevgood' = '"good" last result', 
+                'status.prevfailed' = '"failed" last result',
+                'status.prevpoor' = '"poor" last result',
+                'status.prevacceptable' = '"acceptable" last result')
+
+
 calcOdds <- function(data, x, y){
   o <- ddply(data %>% as.data.frame(),
         c('eqa'), function(d){
@@ -188,7 +198,7 @@ ggsave(paste0(base.dir, 'fig/byPrevEQA.png'),
        pByPrevEQA,  dpi = 600, width = 176, height= 150, units='mm')
 
 
-####################
+# multi dood ---------------
 
 
 eqaAllMulti <- eqaAll %>%
@@ -313,6 +323,13 @@ oddsMultiGood <- oddsMultiGood %>%
   mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
   mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
   mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
+                       type = c('Central Lab', 
+                                'previous status', 
+                                'device'),
+                       var = c('has no central lab',
+                               'status.prevacceptable',
+                               'others'))) %>%
   mutate(var = factor(var)) %>%
   mutate(orderForVar = ifelse(type== 'device', odds+ 10^8,
                               ifelse(type== 'previous status', odds+ 10^6,
@@ -328,12 +345,15 @@ ggplot(oddsMultiGood,
   coord_flip() +
   xlab('') +
   geom_hline(yintercept = 1) +
-  scale_y_continuous(trans=log10_trans()) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
+  scale_x_discrete(labels = oddsLabels) +
   theme_Publication()
 
 ggsave(paste0(base.dir, 'fig/oddsMultiGood.png'),
         dpi = 600, width = 176, height= 80, units='mm')
-#
+
+# multi notFailed ---------------
+
 resMultiNotFailed <- glm(notFailed~seq+centralLab+status.prev+sharedDevice+eqaRound, 
                     data = byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
@@ -359,6 +379,13 @@ oddsMultiNotFailed <- oddsMultiNotFailed %>%
   mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
   mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
   mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
+                       type = c('Central Lab', 
+                                'previous status', 
+                                'device'),
+                       var = c('has no central lab',
+                               'status.prevacceptable',
+                               'others'))) %>%
   mutate(var = factor(var)) %>%
   mutate(orderForVar = ifelse(type== 'device', odds+ 10^8,
                               ifelse(type== 'previous status', odds+ 10^6,
@@ -374,16 +401,29 @@ ggplot(oddsMultiNotFailed,
   coord_flip() +
   geom_hline(yintercept = 1) +
   xlab('') +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1, 50)) +
+  scale_x_discrete(labels = oddsLabels) +
   theme_Publication()
 
 
 ggsave(paste0(base.dir, 'fig/oddsMultiNotFailed.png'),
          dpi = 600, width = 176, height= 80, units='mm')
 
-############
 
-oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, oddsParticipateGood)
+# all single good ---------------
+
+oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, oddsParticipateGood) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 100' | 
+                        var == 'extraEqaRfB KS', 'centralLabcentralLab', 
+                             var)) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 100' | 
+                        var == 'extraEqaRfB KS', 'centralLabcentralLab', 
+                      var)) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 800' | 
+                        var == 'extraEqaRfB GL', 'poct', 
+                      var)) %>%
+  mutate(var = ifelse(var == 'acceptable', 'status.prevacceptable', var))
+  
 ggplot(oddsAllGood,
        aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
   geom_point()+
@@ -393,13 +433,26 @@ ggplot(oddsAllGood,
   xlab('') +
   facet_grid(eqa~.) +
   scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_x_discrete(labels=oddsLabels)+
   theme_Publication()
 
 ggsave(paste0(base.dir, 'fig/oddsAllGood.png'),
          dpi = 600, width = 176, height= 130, units='mm')
 
+# all single notFailed ---------------
+
 oddsAllNotFailed <- rbind(oddsPrevEQANotFailed, oddsSeqEQANotFailed, 
-                          oddsParticipateNotFailed)
+                          oddsParticipateNotFailed) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 100' | 
+                        var == 'extraEqaRfB KS', 'centralLabcentralLab', 
+                      var)) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 100' | 
+                        var == 'extraEqaRfB KS', 'centralLabcentralLab', 
+                      var)) %>%
+  mutate(var = ifelse(var == 'extraEqaInstand 800' | 
+                        var == 'extraEqaRfB GL', 'poct', 
+                      var)) %>%
+  mutate(var = ifelse(var == 'acceptable', 'status.prevacceptable', var))
 
 ggplot(oddsAllNotFailed,
        aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
@@ -409,7 +462,8 @@ ggplot(oddsAllNotFailed,
   geom_hline(yintercept = 1) +
   xlab('') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,50)) +
+  scale_x_discrete(label=oddsLabels) +
   theme_Publication()
 
 ggsave(paste0(base.dir, 'fig/oddsAllNotFailed.png'),

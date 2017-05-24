@@ -20,5 +20,6 @@ source(paste0(base.dir, 'R/algAFuncs.R'))
 
 source(paste0(base.dir, 'R/description.R'))
 source(paste0(base.dir, 'R/frequencyOfDeviations.R'))
+source(paste0(base.dir, 'R/charFunction.R'))
 source(paste0(base.dir, 'R/factorsForPerformance.R'))
 source(paste0(base.dir, 'R/pathway.R'))

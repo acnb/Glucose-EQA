@@ -8,11 +8,10 @@
   group_by(eqa, sharedDevice) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
-  mutate(cv = sd/targetAlgA) %>%
-  mutate(uniqueDevice = paste0(sharedDevice, "\n(", eqa, ')'))
+  mutate(cv = sd/targetAlgA)
 
 
-param.char.func <- ddply(params.single.devices, c('uniqueDevice'), 
+param.char.func <- ddply(params.single.devices, c('eqa', 'sharedDevice'), 
                              function(x){
   model <- NULL
   try({
@@ -32,18 +31,19 @@ param.char.func <- ddply(params.single.devices, c('uniqueDevice'),
 })
 
 param.char.func <- param.char.func %>%
-  filter(n > 500) %>%
+  filter(n > 100) %>%
   filter(!is.na(a)) 
 
 params.single.devices <- params.single.devices %>%
-  filter(uniqueDevice %in% param.char.func$uniqueDevice)
+  join(param.char.func %>% select(eqa, sharedDevice), type = "inner")
 
 
 grid <- seq(from=min(params.single.devices$targetAlgA),
             to=max(params.single.devices$targetAlgA), by=.5)
 
 lines.char.func <- ddply(param.char.func, 
-                         c('uniqueDevice'), function(x){
+                         c('eqa', 'sharedDevice'), 
+                         function(x){
                            data.frame(x=grid, 
                                       y= ((x[['a']]^2+(x[['b']]*grid)^2)^.5)/grid)
                            })
@@ -52,10 +52,10 @@ ggplot() +
   geom_point(data = params.single.devices, 
              aes(x=targetAlgA, y=cv, alpha=w)) +
   geom_line(data=lines.char.func, aes(x=x, y=y)) +
-  facet_wrap(~uniqueDevice) +
+  facet_wrap(~eqa+sharedDevice) +
   theme_Publication(base_size = 10) + 
   theme(legend.position="none", strip.text.x = element_text(size = 6)) +
-  ggtitle('characteristic function for device subgroups') +
+  ggtitle('characteristic function for device') +
   xlab('assigned value') +
   ylab('coefficient of variation')
 
@@ -63,7 +63,9 @@ ggsave(paste0(base.dir, 'fig/charFunc.png'),
        dpi = 600, width = 176, height= 176, units='mm')
 
 
-resids <- ddply(params.single.devices, c('uniqueDevice'), function(x){
+resids <- ddply(params.single.devices, 
+                c('eqa', 'sharedDevice'), 
+                function(x){
   model <- NULL
   try({
     model <- nls(sd ~ (a^2+(b*targetAlgA)^2)^.5, data=x, weights = x$w, 
@@ -79,11 +81,11 @@ resids <- ddply(params.single.devices, c('uniqueDevice'), function(x){
 ggplot(resids, aes(x=x, y=r, weight=w, alpha=w)) +
   geom_point()+
   geom_smooth()+
-  facet_wrap(~uniqueDevice, scales = "free_y") +
+  facet_wrap(~eqa+sharedDevice, scales = "free_y") +
   theme_Publication(base_size = 10) + 
   theme(legend.position="none") +
   xlab('assigned value') +
-  ggtitle('cleaned') +
+  ggtitle('residuals of characteristic function fit') +
   ylab('residuals')
 
 ggsave(paste0(base.dir, 'fig/residsCharFunc.png'), 
@@ -91,24 +93,39 @@ ggsave(paste0(base.dir, 'fig/residsCharFunc.png'),
 
 cv.by.device <- eqaAll %>%
   filter(!is.na(sharedDevice)) %>%
+  join(param.char.func %>% 
+         select(eqa, sharedDevice), type = "inner") %>% # filter
   group_by(eqa, sharedDevice, rmv) %>%
   filter(n() > 7) %>%
-  mutate(uniqueDevice = paste0(sharedDevice, "\n(", eqa, ')')) %>%
-  filter(uniqueDevice %in% param.char.func$uniqueDevice) %>%
   summarise(sd = getSfromAlgA(value), 
             sdE = getStErrorForS(value),
-            targetAlgA = getMufromAlgA(value),
-            uniqueDevice = uniqueDevice[1]) %>%
+            targetAlgA = getMufromAlgA(value)) %>%
   mutate(cv = sd/targetAlgA) %>%
-  group_by(uniqueDevice) %>%
+  group_by(eqa, sharedDevice) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   summarise(mean.cv.w = weighted.mean(cv, w), mean.cv = mean(cv)) %>%
   ungroup()
 
 cv.by.device <- cv.by.device %>%
-  left_join(param.char.func, by=c('uniqueDevice' = 'uniqueDevice')) %>%
-  select(uniqueDevice, mean.cv.w, mean.cv, a, b) %>%
+  join(param.char.func, by=c('eqa' = 'eqa', 
+                                   'sharedDevice' = 'sharedDevice')) %>%
+  select(sharedDevice, eqa, mean.cv.w, mean.cv, a, b) %>%
   mutate_at(vars(mean.cv.w, mean.cv, a, b), round, digits=3)
+
+cv.by.device <- cv.by.device %>%
+  mutate(mean = paste0(mean.cv.w, ' (', eqa, ')'),
+         alpha = paste0(a, ' (', eqa, ')'),
+         beta = paste0(b, ' (', eqa, ')'),
+         device = sharedDevice) %>%
+  group_by(device) %>%
+  summarise(
+    type = ifelse(eqa[1] == 'RfB KS', 'central lab', 'POCT'),
+    mean = paste0(mean, collapse = ", \n"),
+    alpha = paste0(alpha, collapse = ", \n"),
+    beta = paste0(beta, collapse = ", \n")) %>%
+  ungroup() %>%
+  filter(device != 'others') %>%
+  arrange(type, device)
 
 rtf<-RTF(paste0(base.dir,'tab/precision.rtf'))
 addTable(rtf,cv.by.device)
