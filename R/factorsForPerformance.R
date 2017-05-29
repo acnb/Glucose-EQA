@@ -198,14 +198,13 @@ ggsave(paste0(base.dir, 'fig/byPrevEQA.png'),
        pByPrevEQA,  dpi = 600, width = 176, height= 150, units='mm')
 
 
-# multi dood ---------------
-
+# multi good ---------------
 
 eqaAllMulti <- eqaAll %>%
   filter(abs(value-rmv)/rmv < .5) %>%
   group_by(eqa, year, round, sample, device) %>%
   filter(n() > 8) %>%
-  mutate(target = ifelse(eqa == 'Instand 800' | eqa == 'RfB GL', median(value), target)) %>%
+  mutate(target = ifelse(eqa == 'Instand 800' | eqa == 'RfB GL', getMufromAlgA(value), target)) %>%
   filter(abs(target-rmv)/rmv < .3) %>%
   group_by(id) %>%
   mutate(relDiff = (value-target)/target) %>%
