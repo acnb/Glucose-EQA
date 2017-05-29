@@ -28,6 +28,10 @@ resAnalysed <- res %>%
             p025 = quantile(diff, .025), n=n())
 
 ggplot(resAnalysed) +
-  geom_line(aes(x=e, y=p975, color=method))+
-  geom_line(aes(x=e, y=p025, color=method)) +
-  theme_Publication()
+  geom_ribbon(aes(x=e, ymin=p025, ymax=p975, color=method, fill=method), alpha=.5) +
+  theme_Publication() +
+  xlab('estimated standard error') +
+  ylab("relative deviation from true mean \n(central 95%)")
+
+ggsave(paste0(base.dir, 'fig/sim.png'),
+       dpi = 600, width = 85, height= 100, units='mm')
