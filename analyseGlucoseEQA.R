@@ -2,24 +2,25 @@ library(plyr)
 library(tidyverse)
 library(magrittr)
 library(stringr)
+library(here)
 source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
 
 
-base.dir <- '~/RCode/Glucose-EQA/'
+base.dir <- paste0(here::here(), '/')
 colors.status <- c('failed' = "#d7191c",
                   'poor' = "#fdae61",
                   'acceptable' = '#2b83ba',
                   'good' =   "#abdda4")
 
-load(paste0(base.dir, 'data/eqa.RData'))
-load(paste0(base.dir, 'data/lots.RData'))
-load(paste0(base.dir, 'data/sharedDevs.RData'))
+load(here::here('data', 'eqa.RData'))
+load(here::here('data', 'lots.RData'))
+load(here::here('data', 'sharedDevs.RData'))
 
-source(paste0(base.dir, 'R/calcDeviations.R'))
-source(paste0(base.dir, 'R/algAFuncs.R'))
+source(here::here('R', 'calcDeviations.R'))
+source(here::here('R', 'algAFuncs.R'))
 
-source(paste0(base.dir, 'R/description.R'))
-source(paste0(base.dir, 'R/frequencyOfDeviations.R'))
-source(paste0(base.dir, 'R/charFunction.R'))
-source(paste0(base.dir, 'R/factorsForPerformance.R'))
-source(paste0(base.dir, 'R/pathway.R'))
+source(here::here('R', 'description.R'))
+source(here::here('R', 'frequencyOfDeviations.R'))
+source(here::here('R', 'charFunction.R'))
+source(here::here('R', 'factorsForPerformance.R'))
+source(here::here('R', 'pathway.R'))
