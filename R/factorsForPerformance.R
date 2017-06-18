@@ -1,4 +1,5 @@
 library(forcats)
+library(mice)
 
 oddsLabels <- c('seq' = 'number of previous participations',
                 'centralLabcentralLab' = 'has central lab',
@@ -198,7 +199,7 @@ ggsave(paste0(base.dir, 'fig/byPrevEQA.png'),
        pByPrevEQA,  dpi = 600, width = 176, height= 150, units='mm')
 
 
-# multi dood ---------------
+# multi odds ---------------
 
 
 eqaAllMulti <- eqaAll %>%
@@ -267,9 +268,9 @@ eqasByYearMulti <- eqaAllMulti %>%
 byMulti <- eqaAllMulti %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
-  filter(!(year == 2011 & seq == 1 & round < 3)) %>%
+  mutate(seq = ifelse(year == 2011 & seq == 1 & round < 3, NA, seq)) %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
-  filter(hasFullSeq | seq > 8) %>%
+  mutate(seq = ifelse(hasFullSeq | seq > 8, seq, NA)) %>%
   filter(abs(relDiff) < .5) %>%
   mutate(seqGrp = ifelse(seq == 1, 'new', 
                          ifelse(seq <= 10, 'intermediate', 'experienced' ))) %>%
@@ -279,7 +280,6 @@ byMulti <- eqaAllMulti %>%
   left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
   filter(as.character(extraEqa) != as.character(eqa)) %>%
   left_join(prevMulti , by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%
-  filter(!is.na(status.prev)) %>%
   mutate(sharedDevice = as.character(sharedDevice)) %>%
   mutate(sharedDevice = ifelse(is.na(sharedDevice), 
                                "others", sharedDevice)) %>%
@@ -289,20 +289,19 @@ byMulti <- eqaAllMulti %>%
   mutate(centralLab = ifelse(extraEqa == 'Instand 100' | extraEqa == 'RfB KS', 'centralLab', 
                              'none')) %>%
   mutate(centralLab = factor(centralLab, levels=c('none', 'centralLab'))) %>%
-  dplyr::select(year, eqa, id, seq, seqGrp, centralLab, status.prev, sharedDevice, pid,
-                notFailed, good, eqaRound) %>%
+  dplyr::select(year, eqa, id, seq, seqGrp, centralLab, status.prev, sharedDevice, 
+                notFailed, good, eqaRound, pid, round) %>%
   group_by(sharedDevice, eqa) %>%
   mutate(n = n()) %>%
   ungroup() %>%
   mutate(sharedDevice = ifelse(n < 30, 
                                "others", sharedDevice)) %>%
-  mutate(sharedDevice = factor(sharedDevice), n = NULL)
+  mutate(sharedDevice = factor(sharedDevice), n = NULL) %>%
+  mutate(sharedDevice = fct_relevel(sharedDevice, 'others'))
 
 resMultiGood <- glm(good~seq+centralLab+status.prev+sharedDevice+eqaRound, 
                         data = byMulti %>% 
-                          filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                          mutate(sharedDevice = 
-                                   fct_relevel(sharedDevice, 'others')), 
+                          filter(eqa=='Instand 800' | eqa == 'RfB GL'), 
                         family = binomial(link = "logit"))
 
 oddsMultiGood <- 
@@ -352,13 +351,99 @@ ggplot(oddsMultiGood,
 ggsave(paste0(base.dir, 'fig/oddsMultiGood.png'),
         dpi = 600, width = 176, height= 80, units='mm')
 
+## Imputation ---
+
+#' @seealso https://stats.stackexchange.com/questions/78632/multiple-imputation-for-missing-values
+mice.impute.seq <- function(y, ry, x, fullData, ...){
+  fullData <- fullData %>% 
+    group_by(eqa, pid) %>%
+    mutate(rank = dense_rank(year*100+round)) %>%
+    ungroup()
+  
+  first <- fullData$rank == 1
+  
+  sel <- ry | first
+  
+  imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
+  
+  fullData[!ry & first, 'seq'] <- imputeFirst
+  
+  fullData <- fullData %>% 
+    group_by(eqa, pid) %>%
+    mutate(seq = ifelse(is.na(seq), rank+min(seq, na.rm=TRUE)-1,
+                        seq)) %>%
+    ungroup()
+  
+  fullData$seq[!ry]  
+  
+}
+
+meths <- c('eqa' = '', 'seq' = 'seq', 'centralLab'= '', 'status.prev' = 'polyreg',
+           'sharedDevice' = '', 'notFailed' = ' ', 'good' = '', 'eqaRound' = '')
+
+byMulitMice <- mice(byMulti %>% 
+                      filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
+                      select(-year, -pid, -round, -id, -seqGrp), 
+                 method = meths,
+                 m=5, 
+                 fullData = byMulti %>% 
+                   filter(eqa=='Instand 800' | eqa == 'RfB GL'))
+
+fitMulti <- with(data=byMulitMice, 
+                 exp=glm(good~seq+centralLab+status.prev+sharedDevice+eqaRound,
+                         family = binomial(link = "logit")))
+
+pooledFitMulti <- pool(fitMulti)
+oddsMultiGoodImp <- data.frame(odds = exp(pooledFitMulti$qbar))
+oddsMultiGoodImp$var <- row.names(oddsMultiGoodImp)
+colnames(oddsMultiGoodImp) <- make.names(colnames(oddsMultiGoodImp))
+
+oddsMultiGoodImp <- oddsMultiGoodImp %>%
+  filter(var != '(Intercept)') %>%
+  mutate(type = ifelse(str_detect(var, 'sharedDevice'), 'device', NA)) %>%
+  mutate(type = ifelse(str_detect(var, 'status.prev'), 'previous status', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'extraEqa'), 'additional EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
+  mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
+  mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  mutate(var = str_replace(var, 'status.prev2', 'status.prevfailed')) %>%
+  mutate(var = str_replace(var, 'status.prev3', 'status.prevgood')) %>%
+  mutate(var = str_replace(var, 'status.prev4', 'status.prevpoor')) %>%
+  mutate(var = str_replace(var, 'centralLab2', 'centralLabcentralLab')) %>%
+  bind_rows(data_frame(odds = 1,  
+                       type = c('Central Lab', 
+                                'previous status', 
+                                'device'),
+                       var = c('has no central lab',
+                               'status.prevacceptable',
+                               'others'))) %>%
+  mutate(var = factor(var)) %>%
+  mutate(orderForVar = ifelse(type== 'device', odds+ 10^8,
+                              ifelse(type== 'previous status', odds+ 10^6,
+                                     ifelse(type== 'additional EQA', odds+ 10^4,
+                                            ifelse(type== 'Number of previous EQA', odds+ 10^4, 2 ))))) %>%
+  filter(!is.na(type)) %>%
+  mutate(var = fct_reorder(var, orderForVar))
+
+ggplot()+
+  geom_point(data = oddsMultiGood, aes(x=var, y=odds))+
+  geom_errorbar(data = oddsMultiGood, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
+  geom_point(data = oddsMultiGoodImp, aes(x=var, y=odds), colour='red', shape=4)+
+  coord_flip() +
+  xlab('') +
+  geom_hline(yintercept = 1) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
+  scale_x_discrete(labels = oddsLabels) +
+  theme_Publication()
+
+ggsave(paste0(base.dir, 'fig/oddsMultiGoodImp.png'),
+       dpi = 600, width = 176, height= 80, units='mm')
+
 # multi notFailed ---------------
 
 resMultiNotFailed <- glm(notFailed~seq+centralLab+status.prev+sharedDevice+eqaRound, 
                     data = byMulti %>% 
-                      filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                      mutate(sharedDevice = 
-                               fct_relevel(sharedDevice, 'others')), 
+                      filter(eqa=='Instand 800' | eqa == 'RfB GL'), 
                     family = binomial(link = "logit"))
 
 oddsMultiNotFailed <- 
