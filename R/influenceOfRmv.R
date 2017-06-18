@@ -79,12 +79,18 @@ singleVsGroup <- eqaAll %>%
   filter(n() > 7) %>%
   group_by(eqa, year, round, split, sample) %>%
   filter(n_distinct(device) > 1) %>%
-  mutate(mAll = getMufromAlgA(value)) %>%
-  group_by(eqa, year, round, split, sample, device, mAll) %>%
+  mutate(mAll = getMufromAlgA(value), sAll = getSfromAlgA(value)) %>%
+  group_by(eqa, year, round, split, sample, device, mAll, sAll) %>%
   summarise(m = getMufromAlgA(value), s = getSfromAlgA(value), n= n()) %>%
   ungroup() %>%
-  mutate(p = pnorm(q = abs(mAll-m)/2, mean = 0, s= s/sqrt(n), lower.tail = FALSE),
-         diff = abs(mAll-m)/m)
+  mutate(p = pnorm(q = abs(mAll-m)/2, mean = 0, s= sAll, lower.tail = FALSE),
+         diff = abs(mAll-m)/mAll)
+
+countGrps <- singleVsGroup %>%
+  mutate(critical = ifelse(diff > 0.05 & p < .4, TRUE, FALSE)) %>%
+  group_by(critical) %>%
+  summarise(nGps = n(), min=min(n), max = max(n)) %>%
+  ungroup()
 
 ggplot(singleVsGroup, aes(x=p, y=diff, color=n))+
   geom_point() +
@@ -118,7 +124,6 @@ algAvsMedian <- eqaAll %>%
   mutate(diff = (median-algA)/((median+algA)/2), 
          diffO=(medianO-algA)/((medianO+algA)/2),
          diffMed = (medianO-median)/((medianO+median)/2))
-
 
 ggplot(algAvsMedian, aes(x=n,y=diff))+
   theme_Publication(10)+
