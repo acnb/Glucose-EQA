@@ -7,9 +7,9 @@ captions <- list(
   'meanSuccessRate' = 'mean success rate per round',
   'maxSuccessRate' = 'maximum success rate per round',
   'samples' = 'total number of samples', 
-  'minValue' = 'minimum number of samples',
-  'meanValue' = 'mean number of samples',
-  'maxValue' = 'maximum number of samples',
+  'minValue' = 'minimum target value',
+  'meanValue' = 'mean target value',
+  'maxValue' = 'maximum target value',
   'roundsPerYear' = 'rounds per year'
 )
 
