@@ -65,12 +65,3 @@ eqaAll <- eqaAll %>%
          eqaRound = factor(eqaRound),
          year = as.numeric(year),
          round = as.numeric(round)) 
-
-
-lots <- lots %>%
-  group_by(id) %>%
-  filter(n() == 2) %>%
-  mutate(relDiff = (value-target)/target) %>%
-  ungroup() %>%
-  mutate(year = as.numeric(year),
-         round = as.numeric(round)) 
