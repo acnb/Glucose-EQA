@@ -112,7 +112,7 @@ cv.by.device <- cv.by.device %>%
   select(sharedDevice, eqa, mean.cv.w, mean.cv, a, b) %>%
   mutate_at(vars(mean.cv.w, mean.cv, a, b), round, digits=3)
 
-cv.by.device <- cv.by.device %>%
+cv.by.device.table <- cv.by.device %>%
   mutate(mean = paste0(mean.cv.w, ' (', eqa, ')'),
          alpha = paste0(a, ' (', eqa, ')'),
          beta = paste0(b, ' (', eqa, ')'),
@@ -128,5 +128,5 @@ cv.by.device <- cv.by.device %>%
   arrange(type, device)
 
 rtf<-RTF(paste0(base.dir,'tab/precision.rtf'))
-addTable(rtf,cv.by.device)
+addTable(rtf,cv.by.device.table)
 done(rtf)

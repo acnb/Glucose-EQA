@@ -3,6 +3,8 @@ library(tidyverse)
 library(magrittr)
 library(stringr)
 library(here)
+library(ggpub)
+
 source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
 
 
@@ -12,8 +14,8 @@ colors.status <- c('failed' = "#d7191c",
                   'acceptable' = '#2b83ba',
                   'good' =   "#abdda4")
 
-load(here::here('data', 'eqa.RData'))
-load(here::here('data', 'lots.RData'))
+load(here::here('data', 'eqaAll.RData'))
+#load(here::here('data', 'lots.RData'))
 load(here::here('data', 'sharedDevs.RData'))
 
 source(here::here('R', 'calcDeviations.R'))
