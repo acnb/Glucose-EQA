@@ -1,19 +1,19 @@
-frequentLots <- lots %>%
+frequentLots <- eqaAll %>%
   filter(!is.na(value)) %>%
   filter(!is.na(lot)) %>%
   mutate(lot = factor(lot)) %>%
   filter(abs(relDiff) < .5) %>%
-  group_by(round, sample, lot, gid, year) %>%
+  group_by(round, sample, lot, device, year) %>%
   mutate(n_in_lot = n()) %>%
   filter(n_in_lot > 7) %>%
   mutate(e = 1.253*(getSfromAlgA(value)/getMufromAlgA(value))/sqrt(n_in_lot)) %>%
   filter(e < .025) %>%
-  group_by(round, sample, gid, year) %>%
+  group_by(round, sample, device, year) %>%
   filter(n_distinct(lot) > 1) %>%
   ungroup()
 
 diffBetweenLots <- ddply(frequentLots, 
-                         c("round", "sample", "gid", "year"),  function(x){
+                         c("round", "sample", "device", "year"),  function(x){
                            quantilesFromA(x)
                          })
 
