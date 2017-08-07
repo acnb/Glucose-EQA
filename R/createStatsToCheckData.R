@@ -151,6 +151,10 @@ for(i in 1:nrow(samples)){
   web$n.data <- data$n 
   web$mean.data <- data$mean
   web$target <- data$target
+  web$q.data <- data$p*100
+  web$diff.q <- web$q - data$p*100
+  web$split <- data$split
+  
   comp800 <- rbind(comp800, web)
   }
 
