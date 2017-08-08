@@ -4,6 +4,7 @@ library(magrittr)
 library(stringr)
 library(here)
 library(ggpub)
+library(scales)
 
 source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
 
@@ -15,7 +16,7 @@ colors.status <- c('failed' = "#d7191c",
                   'good' =   "#abdda4")
 
 load(here::here('data', 'eqaAll.RData'))
-#load(here::here('data', 'lots.RData'))
+
 load(here::here('data', 'sharedDevs.RData'))
 
 source(here::here('R', 'calcDeviations.R'))
@@ -27,3 +28,4 @@ source(here::here('R', 'charFunction.R'))
 source(here::here('R', 'factorsForPerformance.R'))
 source(here::here('R', 'pathway.R'))
 source(here::here('R', 'lots.R'))
+source(here::here("R", "biasBudget.R"))
