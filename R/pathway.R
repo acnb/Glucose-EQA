@@ -4,7 +4,7 @@ replaceNA <- function(x){
   }
 
 failedYears <- eqaAll %>%
-  filter(year < 2015) %>%
+  filter(year < 2016) %>%
   select(pid, eqa, year, status, device, round) %>%
   unique() %>%
   group_by(pid, eqa, year) %>%
@@ -106,8 +106,7 @@ ggplot(resNextYear, aes(x=type, y=absDiff)) +
   theme_Publication(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(paste0(base.dir, 'fig/pathDetails.png'), 
-       dpi = 600, width = 65, height= 120, units='mm')
+ggpub("pathDetails", width = 65, height = 120)
 
 
 ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
@@ -128,5 +127,4 @@ ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
   theme_Publication(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(paste0(base.dir, 'fig/pathAll.png'), 
-       dpi = 600, width = 110, height= 120, units='mm')
+ggpub("pathAll", width = 110, height = 120)

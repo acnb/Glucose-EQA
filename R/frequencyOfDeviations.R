@@ -16,7 +16,7 @@ poly <- data.frame(x = c(quant$x, quant$x[nrow(quant):1]),
 
 eqaData <- eqaAll %>%
   filter(!is.na(relDiff)) %>%
-  filter(abs(relDiff) < .5) %>%
+  filter(abs(relDiff) < .45) %>%
   group_by(eqa) %>%
   mutate(class = cut(relDiff, breaks=seq(-.3, .3, .01), 
                      labels = seq(-.3+.01, .3, .01)-(.01/2))
@@ -38,5 +38,4 @@ ggplot() +
   ylab("frequency") +
   facet_grid(eqa~.)
 
-ggsave(paste0(base.dir, 'fig/precision.png'), 
-       dpi = 600, width = 85, height= 120, units='mm')
+ggpub('precision.png', height= 120)

@@ -1,6 +1,3 @@
-library(boot)
-library(robustbase)
-
 getSfromAlgA <- function(x){
   huberM(x)$s
 }
