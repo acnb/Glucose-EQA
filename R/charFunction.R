@@ -1,5 +1,6 @@
- params.single.devices <- eqaAll %>%
+params.single.devices <- eqaAll %>%
   filter(!is.na(sharedDevice)) %>%
+  filter(abs(relDiff) < .45) %>%
   group_by(eqa, sharedDevice, rmv) %>%
   filter(n() > 7) %>%
   summarise(sd = getSfromAlgA(value), 
@@ -53,14 +54,13 @@ ggplot() +
              aes(x=targetAlgA, y=cv, alpha=w)) +
   geom_line(data=lines.char.func, aes(x=x, y=y)) +
   facet_wrap(~eqa+sharedDevice) +
-  theme_Publication(base_size = 10) + 
+  theme_pub(base_size = 10) + 
   theme(legend.position="none", strip.text.x = element_text(size = 6)) +
   ggtitle('characteristic function for device') +
   xlab('assigned value') +
   ylab('coefficient of variation')
 
-ggsave(paste0(base.dir, 'fig/charFunc.png'), 
-       dpi = 600, width = 176, height= 176, units='mm')
+ggpub('charFunc', height= 176)
 
 
 resids <- ddply(params.single.devices, 
@@ -82,17 +82,17 @@ ggplot(resids, aes(x=x, y=r, weight=w, alpha=w)) +
   geom_point()+
   geom_smooth()+
   facet_wrap(~eqa+sharedDevice, scales = "free_y") +
-  theme_Publication(base_size = 10) + 
+  theme_pub(base_size = 10) + 
   theme(legend.position="none") +
   xlab('assigned value') +
   ggtitle('residuals of characteristic function fit') +
   ylab('residuals')
 
-ggsave(paste0(base.dir, 'fig/residsCharFunc.png'), 
-       dpi = 600, width = 176, height= 176, units='mm')
+ggpub('residsCharFunc', height= 176)
 
 cv.by.device <- eqaAll %>%
   filter(!is.na(sharedDevice)) %>%
+  filter(abs(relDiff) < .45) %>%
   join(param.char.func %>% 
          select(eqa, sharedDevice), type = "inner") %>% # filter
   group_by(eqa, sharedDevice, rmv) %>%
@@ -127,6 +127,6 @@ cv.by.device.table <- cv.by.device %>%
   filter(device != 'others') %>%
   arrange(type, device)
 
-rtf<-RTF(paste0(base.dir,'tab/precision.rtf'))
+rtf<-RTF(here('tab', 'precision.rtf'))
 addTable(rtf,cv.by.device.table)
 done(rtf)

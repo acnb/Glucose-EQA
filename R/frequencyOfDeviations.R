@@ -1,6 +1,6 @@
 quant <- eqaAll %>%
   filter(!is.na(relDiff)) %>%
-  filter(abs(relDiff) < .5) %>%
+  filter(abs(relDiff) < .45) %>%
   group_by(eqa) %>%
   summarise(p025 = quantile(relDiff, .025, names = F),
             p975 = quantile(relDiff, .975, names = F)) %>%
@@ -24,7 +24,8 @@ eqaData <- eqaAll %>%
   group_by(eqa, class) %>%
   summarise(p = n()/n[1]) %>%
   ungroup() %>%
-  mutate(class = as.numeric(as.character(class)))
+  mutate(class = as.numeric(as.character(class))) %>%
+  commonOrder()
   
 
 ggplot() +
@@ -32,10 +33,10 @@ ggplot() +
   scale_x_continuous(limits = c(-.3,.3), labels=percent) +
   geom_polygon(data = poly, aes(x=x, y=y), 
                fill = "red", alpha=.1) +
-  theme_Publication(base_size = 10) +
+  theme_pub(base_size = 10) +
   scale_y_continuous(labels=percent) + 
   xlab("relative deviation from assigned value") +
   ylab("frequency") +
   facet_grid(eqa~.)
 
-ggpub('precision.png', height= 120)
+ggpub('precision', height= 120)
