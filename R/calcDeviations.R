@@ -49,8 +49,7 @@ eqaAll <- eqaAll %>%
   mutate(sharedDevice = ifelse(eqa == 'Instand 800' & 
                                  device %in% sharedDevs$devInstand,
           device, sharedDevice)) %>%
-  mutate(sharedDevice = ifelse(eqa == 'RfB KS', 
-                               paste0(eqa, ': ',device), sharedDevice)) %>%
+  mutate(sharedDevice = ifelse(eqa == 'RfB KS', NA, sharedDevice)) %>%
   mutate(sharedDevice = ifelse(eqa == 'RfB GL' & split == 'Anderes Gerät', 
                                'others', sharedDevice)) %>%
   mutate(sharedDevice = ifelse(eqa == 'Instand 800' & split == '90', 

@@ -1,4 +1,5 @@
 setWidthTwoColumns(176)
+setWidthOneColumn(85)
 
 
 colors.status <- c('failed' = "#d7191c",
@@ -10,7 +11,8 @@ commonOrder <- function(d){
   orders <- list("eqa" = c("Instand 100", "Instand 800", "RfB KS",  "RfB GL"),
                  "seGrp" = c("new", "intermediate", "experienced"),
                  "extraEqa" = c("none", "Instand 100", "Instand 800", 
-                                "RfB KS", "RfB GL")
+                                "RfB KS", "RfB GL"),
+                 "type" = c("POCT", "central lab")
   )
   
   for(coln in names(orders)){

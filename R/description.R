@@ -10,7 +10,8 @@ captions <- list(
   'minValue' = 'minimum target value',
   'meanValue' = 'mean target value',
   'maxValue' = 'maximum target value',
-  'roundsPerYear' = 'rounds per year'
+  'roundsPerYear' = 'rounds per year',
+  'nDevices' = 'number of different devices'
 )
 
 descriptionRV <- eqaAll %>%
@@ -30,7 +31,10 @@ descriptionRV <- eqaAll %>%
             maxParticipants = max(participants),
             minSuccessRate = round(min(successRate), 2),
             meanSuccessRate = round(mean(successRate), 2),
-            maxSuccessRate = round(max(successRate), 2))
+            maxSuccessRate = round(max(successRate), 2))  %>%
+  ungroup() %>%
+  commonOrder() %>%
+  arrange(eqa)
 
 
 descriptionSamples <- eqaAll %>% 
@@ -39,8 +43,13 @@ descriptionSamples <- eqaAll %>%
             minValue = min(target),
             meanValue = round(mean(target), 2),
             maxValue = max(target),
-            roundsPerYear = max(round)) %>%
-  ungroup() 
+            roundsPerYear = max(round),
+            nDevices = as.character(n_distinct(device))) %>%
+  ungroup() %>%
+  mutate(nDevices = ifelse(eqa == 'Instand 100', '-', nDevices)) %>%
+  commonOrder() %>%
+  arrange(eqa) 
+  
 
 descrAll <- rbind(t(descriptionRV), t(descriptionSamples))
 colnames(descrAll) <- descrAll[1,]
@@ -50,10 +59,11 @@ descrAll <- descrAll %>%
   as.data.frame() %>%
   mutate(V1 = as.character(V1)) %>%
   rowwise() %>%
-  mutate(V1 = ifelse(V1 %in% names(captions), captions[[V1]], V1))
+  mutate(V1 = ifelse(V1 %in% names(captions), captions[[V1]], V1)) %>%
+  ungroup() 
 
 colnames(descrAll)[1] <- ' '
 
-rtf<-RTF(paste0(base.dir,'tab/description.rtf'))
+rtf<-RTF(here('tab', 'description.rtf'))
 addTable(rtf,descrAll)
 done(rtf)

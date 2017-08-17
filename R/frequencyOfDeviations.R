@@ -1,5 +1,4 @@
 quant <- eqaAll %>%
-  filter(!is.na(relDiff)) %>%
   filter(abs(relDiff) < .45) %>%
   group_by(eqa) %>%
   summarise(p025 = quantile(relDiff, .025, names = F),
@@ -15,7 +14,6 @@ poly <- data.frame(x = c(quant$x, quant$x[nrow(quant):1]),
                        rep.int(ymax, nrow(quant))))
 
 eqaData <- eqaAll %>%
-  filter(!is.na(relDiff)) %>%
   filter(abs(relDiff) < .45) %>%
   group_by(eqa) %>%
   mutate(class = cut(relDiff, breaks=seq(-.3, .3, .01), 
@@ -39,4 +37,4 @@ ggplot() +
   ylab("frequency") +
   facet_grid(eqa~.)
 
-ggpub('precision', height= 120)
+ggpub('precision', formatWidth="oneColumn", height= 120)

@@ -9,20 +9,19 @@ library(scales)
 library(robustbase)
 library(boot)
 library(forcats)
+library(rtf)
 
-source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
+#source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
 
 
 base.dir <- paste0(here::here(), '/')
-colors.status <- c('failed' = "#d7191c",
-                  'poor' = "#fdae61",
-                  'acceptable' = '#2b83ba',
-                  'good' =   "#abdda4")
+
 
 load(here::here('data', 'eqaAll.RData'))
 
 load(here::here('data', 'sharedDevs.RData'))
 
+source(here::here('R', 'helpersForGraphics.R'))
 source(here::here('R', 'calcDeviations.R'))
 source(here::here('R', 'algAFuncs.R'))
 
