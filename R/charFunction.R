@@ -1,5 +1,6 @@
 params.single.devices <- eqaAll %>%
   filter(eqa != 'Instand 100') %>%
+  filter(!str_detect(device, "Anderer Hersteller, other producer")) %>%
   mutate(charDev = ifelse(is.na(sharedDevice) | sharedDevice == 'others', 
                           as.character(device),
                           as.character(sharedDevice))) %>%
