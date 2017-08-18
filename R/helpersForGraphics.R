@@ -8,12 +8,21 @@ colors.status <- c('failed' = "#d7191c",
                    'good' =   "#abdda4")
 
 commonOrder <- function(d){
-  orders <- list("eqa" = c("Instand 100", "Instand 800", "RfB KS",  "RfB GL"),
-                 "seGrp" = c("new", "intermediate", "experienced"),
-                 "extraEqa" = c("none", "Instand 100", "Instand 800", 
-                                "RfB KS", "RfB GL"),
+  orders <- list("eqa" = c("Instand 100", "RfB KS", "Instand 800", "RfB GL"),
+                 "seqGrp" = c("new", "intermediate", "experienced"),
+                 "extraEqa" = c("none", "Instand 100", "RfB KS", 
+                                "Instand 800", "RfB GL"),
+                 "status.prev" = c("failed", "poor", "acceptable", "good"),
                  "type" = c("POCT", "central lab")
   )
+  
+  concatOrders <- function(o){
+    paste0(o, orders[[o]])
+  }
+  
+  vOrder <- c(concatOrders("status.prev"), concatOrders("seqGrp"))
+  
+  orders <- append(orders, list("var" = vOrder))
   
   for(coln in names(orders)){
     if (coln %in% colnames(d)){
