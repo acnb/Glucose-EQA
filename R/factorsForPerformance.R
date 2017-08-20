@@ -446,11 +446,12 @@ mice.impute.seq <- function(y, ry, x, fullData, ...){
 }
 
 meths <- c('eqa' = '', 'seq' = 'seq', 'centralLab'= '', 'status.prev' = 'polyreg',
-           'sharedDevice' = '', 'notFailed' = ' ', 'good' = '', 'eqaRound' = '')
+           'sharedDevice' = '', 'notFailed' = '', 'good' = '', 'eqaRound' = '')
 
 byMulitMice <- mice(byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                      select(-year, -pid, -round, -id, -seqGrp), 
+                      select(-year, -pid, -round, -id, -seqGrp,
+                             -nlabs, -poct, -device), 
                  method = meths,
                  m=5, 
                  fullData = byMulti %>% 
