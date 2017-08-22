@@ -59,7 +59,9 @@ actOnFailed.All <- actOnFailed %>%
   group_by(act, eqa) %>%
   summarise(n = n()) %>%
   group_by(eqa) %>%
-  mutate(p = n/sum(n))
+  mutate(p = n/sum(n)) %>%
+  ungroup() %>%
+  commonOrder()
 
 actOnFailed.dry <- actOnFailed %>%
   filter(eqa == 'Instand 800' | eqa == 'RfB GL') %>%
@@ -94,7 +96,19 @@ resNextYear <- inner_join(nextYearDevs, eqaAll)
 
 resNextYear <- resNextYear %>%
   mutate(absDiff = abs(relDiff)) %>%
-  filter(absDiff < .5)
+  filter(absDiff < .45) %>%
+  commonOrder()
+
+
+wilcox.test(resNextYear %>% filter(eqa == 'Instand 800' & type == 'f') %>% 
+              .$absDiff,
+            resNextYear %>% filter(eqa == 'Instand 800' & type != 'f') %>% 
+              .$absDiff)
+
+countsNextYear <- resNextYear %>%
+  group_by(eqa, type) %>%
+  summarise(n = n()) %>%
+  ungroup()
 
 ggplot(resNextYear, aes(x=type, y=absDiff)) +
   geom_boxplot(outlier.shape = NA) +
@@ -103,7 +117,7 @@ ggplot(resNextYear, aes(x=type, y=absDiff)) +
   xlab('')+
   ylab('deviation from assined value') +
   facet_grid(~eqa) +
-  theme_Publication(base_size = 10) +
+  theme_pub(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggpub("pathDetails", width = 65, height = 120)
@@ -124,7 +138,7 @@ ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
     aes(label = n, y = p + 0.02),
     position = position_dodge(0.9),
     vjust = 0) +
-  theme_Publication(base_size = 10) +
+  theme_pub(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggpub("pathAll", width = 110, height = 120)

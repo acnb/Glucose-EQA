@@ -555,11 +555,10 @@ ggplot(oddsMultiNotFailed,
   xlab('') +
   scale_y_continuous(trans=log10_trans(), limits = c(.1, 50)) +
   scale_x_discrete(labels = oddsLabels) +
-  theme_Publication()
+  theme_pub()
 
 
-ggsave(paste0(base.dir, 'fig/oddsMultiNotFailed.png'),
-         dpi = 600, width = 176, height= 80, units='mm')
+ggpub('oddsMultiNotFailed', height= 80)
 
 
 # all single good ---------------
