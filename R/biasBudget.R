@@ -69,7 +69,7 @@ biasBudgetSEG.CharFunc <- function(a, b, sd=3){
 } 
 
 
-budgetByDevice.CV <- ddply(cv.by.device, c('sharedDevice', 'eqa'),
+budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
                         function(x){
                           biasBudgetSEG.CV(x[1, 'mean.cv.w'])
                         })
@@ -79,7 +79,7 @@ addTable(rtf,budgetByDevice.CV)
 done(rtf)
 
 
-budgetByDevice.CharFunc <- ddply(cv.by.device, c('sharedDevice', 'eqa'),
+budgetByDevice.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
                            function(x){
                              biasBudgetSEG.CharFunc(x[1, 'a'], x[1, 'b'])
                            })
@@ -101,6 +101,76 @@ ggplot(budgetByDevice.CV %>% filter(sharedDevice != 'others'),
 
 ggpub('allowedBias')
 
+
+## bias budget klee simulation ----
+
+biasBudgetSim.CV <- function(cv, sd=3){
+  insulinCategories <-  c(80, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
+  
+  borders <- data.frame(ref = insulinCategories,
+                        lower = c(-Inf, -Inf, 
+                                  insulinCategories[
+                                    1:(length(insulinCategories)-2)]),
+                        upper = c(insulinCategories[
+                          3:(length(insulinCategories))],
+                                  Inf, Inf)) 
+  
+  budget <- borders %>%
+    mutate(diffUpper = upper - (ref+ref*cv*sd),
+           diffLower = lower - (ref-ref*cv*sd)) %>%
+    summarise(budgetLowerAbs = max(diffLower), 
+              refLowerAbs = ref[which.max(diffLower)],
+              budgetUpperAbs = min(diffUpper), 
+              refUpperAbs = ref[which.min(diffUpper)])
+  
+  budget
+}
+
+
+biasBudgetSim.CharFunc <- function(a, b, sd=3){
+  insulinCategories <-  c(80, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
+  
+  borders <- data.frame(ref = insulinCategories,
+                        lower = c(-Inf, -Inf, 
+                                  insulinCategories[
+                                    1:(length(insulinCategories)-2)]),
+                        upper = c(insulinCategories[
+                          3:(length(insulinCategories))],
+                          Inf, Inf)) 
+  
+  budget <- borders %>%
+    mutate(diffUpper = upper - (ref+sqrt(a^2+(ref*b)^2)*sd),
+           diffLower = lower - (ref-sqrt(a^2+(ref*b)^2)*sd)) %>%
+    summarise(budgetLower = max(diffLower), 
+              refLower = ref[which.max(diffLower)],
+              budgetUpper = min(diffUpper), 
+              refUpper = ref[which.min(diffUpper)])
+  
+  budget
+} 
+
+
+budgetByDevice.Sim.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
+                           function(x){
+                             biasBudgetSim.CV(x[1, 'mean.cv.w'])
+                           })
+
+
+rtf<-RTF(here('tab', 'budgetByDevice.Sim.CV.csv'))
+addTable(rtf,budgetByDevice.Sim.CV)
+done(rtf)
+
+
+budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
+                                 function(x){
+                                   biasBudgetSim.CharFunc(x[1, 'a'], x[1, 'b'])
+                                 })
+
+rtf<-RTF(here('tab', 'budgetByDevice.CharFunc.csv'))
+addTable(rtf,budgetByDevice.CharFunc)
+done(rtf)
+
+
 ## bias budget explanation graph ----
 
 borders <- data.frame()
@@ -121,7 +191,7 @@ borders <- as.data.frame(borders) %>%
 
 
 meanCharFunc <- cv.by.device %>%
-  filter(sharedDevice != "others") %>%
+  filter(charDev != "others") %>%
   filter(eqa == 'Instand 800' | eqa == "RfB GL") %>%
   summarise(a = median(a), b=median(b)) %>%
   as.list()
