@@ -5,10 +5,11 @@ replaceNA <- function(x){
 
 failedYears <- eqaAll %>%
   filter(year < 2016) %>%
+  filter(eqa != 'Instand 100' & eqa != 'RfB KS') %>%
   select(pid, eqa, year, status, device, round) %>%
   unique() %>%
   group_by(pid, eqa, year) %>%
-  summarise(failedYear = ifelse(sum(status == 'failed') > 1, TRUE, FALSE),
+  summarise(failedYear = sum(status == 'failed') > 1,
             p.device1 = unique(device[status != 'failed'])[1], 
             p.device2 = unique(device[status != 'failed'])[2],
             p.device3 = unique(device[status != 'failed'])[3], 
@@ -46,13 +47,6 @@ actOnFailed <- failedYears %>%
                            'eqa' = 'eqa')) %>%
   mutate(act = ifelse(is.na(nFailure), 'leftEQA', 
                       ifelse(nFailure == 0, 'cont.Good', 'cont.Fail'))) %>%
-  rowwise() %>%
-  mutate(devChange = ifelse(
-    length(intersect(c(f.device1, f.device2, f.device3, f.device4), 
-                     c(device1, device2, device3, device4))) == 0, TRUE, FALSE
-  )) %>%
-  mutate(sumNewDevs = sum(! c(device1, device2, device3, device4) %in%
-                            c(f.device1, f.device2, f.device3, f.device4, ''))) %>%
   ungroup()
 
 actOnFailed.All <- actOnFailed %>% 
@@ -68,16 +62,23 @@ actOnFailed.dry <- actOnFailed %>%
   filter(act != 'leftEQA') %>% ungroup() %>% as.data.frame()
 
 nextYearDevs <- adply(actOnFailed.dry, 1, function(x){
-  fDev <- unique(c(x$f.device1, x$f.device2, x$f.device3, x$f.device4))
-  nDev <- unique(c(x$device1, x$device2, x$device3, x$device4))
-  fDev <- fDev[!is.na(fDev) & fDev != '']
-  nDev <- nDev[!is.na(nDev) & nDev != '']
+  failedDev <- unique(c(x$f.device1, x$f.device2, x$f.device3, x$f.device4))
+  newyearDev <- unique(c(x$device1, x$device2, x$device3, x$device4))
+  failedDev <- failedDev[!is.na(failedDev) & failedDev != '']
+  newyearDev <- newyearDev[!is.na(newyearDev) & newyearDev != '']
   
-  nDev <- nDev[!nDev %in% fDev]
+  newDev.notFailed <- newyearDev[!newyearDev %in% failedDev]
+  newDev.Failed <- newyearDev[newyearDev %in% failedDev]
   
-  f <- data.frame('type'='f', 'geraet' = fDev)
-  if(length(nDev) > 0){
-    n <- data.frame('type'='n', 'geraet' = nDev)
+  
+  if(length(newDev.Failed) > 0){
+    f <- data.frame('type'='f', 'device' = newDev.Failed)
+  }
+  else{
+    f <- data.frame()
+  }
+  if(length(newDev.notFailed) > 0){
+    n <- data.frame('type'='n', 'device' = newDev.notFailed)
   }
   else{
     n <- data.frame()
@@ -91,18 +92,20 @@ nextYearDevs <- adply(actOnFailed.dry, 1, function(x){
   
 }, .expand =F)
 
-
-resNextYear <- inner_join(nextYearDevs, eqaAll)
-
-resNextYear <- resNextYear %>%
+resNextYear <- inner_join(nextYearDevs, eqaAll, 
+                          by = c("device", "pid", "eqa", "year")) %>%
   mutate(absDiff = abs(relDiff)) %>%
-  filter(absDiff < .45) %>%
   commonOrder()
 
+pVals <- resNextYear %>%
+  group_by(eqa) %>%
+  summarise(p = 
+              wilcox.test(absDiff[type == 'f'], 
+                          absDiff[type != 'f'])[['p.value']])
 
-wilcox.test(resNextYear %>% filter(eqa == 'Instand 800' & type == 'f') %>% 
+wilcox.test(resNextYear %>% filter(eqa == 'RfB GL' & type == 'f') %>% 
               .$absDiff,
-            resNextYear %>% filter(eqa == 'Instand 800' & type != 'f') %>% 
+            resNextYear %>% filter(eqa == 'RfB GL' & type != 'f') %>% 
               .$absDiff)
 
 countsNextYear <- resNextYear %>%
@@ -142,3 +145,45 @@ ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ggpub("pathAll", width = 110, height = 120)
+
+
+## path for passing ----
+
+deviceStatus <- eqaAll %>%
+  filter(eqa != 'Instand 100' & eqa != 'RfB KS') %>%
+  select(eqa, year, round, pid, status, device) %>%
+  unique() %>%
+  group_by(pid, eqa) %>%
+  mutate(seq = dense_rank(year*100+round)) %>% 
+  ungroup() %>%
+  arrange(eqa, pid, seq)
+
+changesDevices <- ddply(deviceStatus, c('eqa', 'pid'), function(x){
+  devChanges <- data.frame()
+  for (i in 1:nrow(x)){
+    year <- x[i, 'year']
+    round <- x[i, 'round']
+    device <- x[i, 'device']
+    seq <- x[i, 'seq']
+    status <- x[i, 'status']
+    
+    roundsAfter <- x[x$seq > seq & (
+      ((x$year + 1) < year) & ((x$round) <= round) |
+        x$year == year), ]
+    
+    if (nrow(roundsAfter) >= 3 ){
+      devChanges <- rbind(devChanges, 
+                          data.frame(status = status,
+                                     changed = 
+                                       length(unique(c(device, x$device))) != 1))
+      
+    }
+    
+  }
+  devChanges
+})
+
+statsChangesDevices <- changesDevices %>% 
+  mutate(failed = (status == 'failed')) %>%
+  group_by(eqa, failed) %>%
+  summarise(p = sum(changed)/n(), n = n())
