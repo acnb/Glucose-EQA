@@ -11,7 +11,7 @@ commonOrder <- function(d){
   orders <- list("eqa" = c("Instand 100", "RfB KS", "Instand 800", "RfB GL"),
                  "seqGrp" = c("new", "intermediate", "experienced"),
                  "extraEqa" = c("none", "Instand 100", "RfB KS", 
-                                "Instand 800", "RfB GL"),
+                                "Instand 800", "RfB GL", 'CL',  'POCT'),
                  "status.prev" = c("failed", "poor", "acceptable", "good"),
                  "type" = c("POCT", "central lab")
   )
@@ -20,7 +20,9 @@ commonOrder <- function(d){
     paste0(o, orders[[o]])
   }
   
-  vOrder <- c(concatOrders("status.prev"), concatOrders("seqGrp"))
+  vOrder <- c(concatOrders("status.prev"), 
+              concatOrders("seqGrp"), 
+              concatOrders("extraEqa"))
   
   orders <- append(orders, list("var" = vOrder))
   

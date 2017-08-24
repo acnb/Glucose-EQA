@@ -11,7 +11,23 @@ oddsLabels <- c('seq' = 'number of previous participations',
                 'seqGrpnew' = '"new" participant',
                 'seqGrpintermediate' = '"intermediate" experience',
                 'seqGrpexperienced' = '"experienced" participant',
-                'poctPOCT' = 'has POCT')
+                'poctPOCT' = 'has POCT',
+                'extraEqanone' = 'no additional EQA',
+                'extraEqaPOCT' = 'additional POCT EQA',
+                'extraEqaCL' = 'additional CL EQA')
+
+replaceCLNames <- function(str){
+  str <- case_when(str_detect(str, 'Hexokinase --') ~ paste(str, '[HK]'),
+                   str_detect(str, 'Glucose oxidase/PAP --') ~ 
+                     paste(str, '[GO/PAP]'),
+                   str_detect(str, 'Glucose oxidase/H2O2-electrode -- ') ~ 
+                     paste(str, '[GO/H2O2]'), 
+                   TRUE ~ str)
+  
+  str_replace_all(str, c('Hexokinase -- ' = "", 
+                         'Glucose oxidase/PAP -- ' ="",
+                         'Glucose oxidase/H2O2-electrode -- ' =""))
+}
 
 
 calcOdds <- function(data, x, y){
@@ -230,193 +246,7 @@ eqasByYearMulti <- eqaAllMulti %>%
   mutate(n = NULL) %>%
   commonOrder()
 
-
-byMulti <- eqaAllMulti %>%
-  group_by(pid, eqa) %>%
-  mutate(seq = dense_rank(year*100+round)) %>% 
-  mutate(seq = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
-  mutate(hasFullSeq = (1 %in% seq)) %>%
-  mutate(seq = ifelse(hasFullSeq | seq > 8, seq, NA)) %>%
-  filter(abs(relDiff) < .45) %>%
-  mutate(seqGrp = case_when(seq == 1 ~ 'new', 
-                         seq <= 10 ~ 'intermediate',
-                         TRUE ~ 'experienced' )) %>%
-  mutate(seqGrp = factor(seqGrp)) %>%
-  ungroup() %>%
-  left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
-  filter(as.character(extraEqa) != as.character(eqa)) %>%
-  left_join(prevMulti , by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%
-  mutate(sharedDevice = as.character(sharedDevice)) %>%
-  mutate(sharedDevice = ifelse(is.na(sharedDevice), 
-                               "others", sharedDevice)) %>%
-  mutate(good = ifelse(status == 'good', 1, 0)) %>%
-  mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
-  mutate(status.prev = factor(status.prev, ordered= FALSE)) %>%
-  mutate(centralLab = ifelse(extraEqa == 'Instand 100' | extraEqa == 'RfB KS',
-                             'centralLab', 
-                             'none')) %>%
-  mutate(poct = ifelse(extraEqa == 'Instand 800' | extraEqa == 'RfB GL', 'POCT', 
-                             'none')) %>%
-  mutate(centralLab = factor(centralLab, levels=c('none', 'centralLab'))) %>%
-  mutate(poct = factor(poct, levels=c('none', 'POCT'))) %>%
-  dplyr::select(year, eqa, id, seq, seqGrp, centralLab, poct, 
-                status.prev, sharedDevice, device, notFailed, 
-                good, eqaRound, pid, round) %>%
-  group_by(sharedDevice, eqa) %>%
-  mutate(n = n()) %>%
-  ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 100, 
-                               "others", sharedDevice)) %>%
-  group_by(device, eqa) %>%
-  mutate(n = n(), nlabs = n_distinct(pid)) %>%
-  ungroup() %>%
-  mutate(device = as.character(device)) %>%
-  mutate(device = if_else(n < 100, "others", device)) %>%
-  mutate(device = if_else(nlabs < 10, "others", device)) %>%
-  mutate(device = if_else(str_detect(device, "Anderer Hersteller, other producer"),
-                                     "others", device)) %>%
-  mutate(sharedDevice = factor(sharedDevice), n = NULL) %>%
-  mutate(sharedDevice = fct_relevel(sharedDevice, 'others')) %>%
-  mutate(device = as.factor(device)) %>%
-  mutate(device = fct_relevel(device, 'others')) %>%
-  mutate(seqGrp = fct_relevel(seqGrp, 'intermediate')) %>%
-  mutate(status.prev = fct_relevel(status.prev, 'acceptable'))
-
-resMultiGoodPOCT <- glm(good~seqGrp+centralLab+status.prev+sharedDevice+eqaRound, 
-                        data = byMulti %>% 
-                          filter(eqa=='Instand 800' | eqa == 'RfB GL'), 
-                        family = binomial(link = "logit"))
-
-oddsMultiGoodPOCT <- 
-  exp(cbind(odds = coef(resMultiGoodPOCT), confint(resMultiGoodPOCT)))
-
-oddsMultiGoodPOCT <- as.data.frame(oddsMultiGoodPOCT)
-
-oddsMultiGoodPOCT$var <- row.names(oddsMultiGoodPOCT)
-colnames(oddsMultiGoodPOCT) <- make.names(colnames(oddsMultiGoodPOCT))
-
-oddsMultiGoodPOCT <- oddsMultiGoodPOCT %>% 
-  filter(!is.na(X2.5..)) %>% 
-  filter(!is.na(X97.5..)) %>%
-  filter(var != '(Intercept)') %>%
-  mutate(type = ifelse(str_detect(var, 'sharedDevice'), 'device', NA)) %>%
-  mutate(type = ifelse(str_detect(var, 'status.prev'), 'previous status', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'extraEqa'), 'additional EQA', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'centralLab'), 'Central Lab', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'seqGrp'), 'Experience', type)) %>%
-  mutate(var = str_replace(var, 'sharedDevice', '')) %>%
-  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
-                       type = c('Central Lab', 
-                                'previous status', 
-                                'Experience',
-                                'device'),
-                       var = c('has no central lab',
-                               'status.prevacceptable',
-                               'seqGrpintermediate',
-                               'others'))) %>%
-  mutate(var = factor(var)) %>%
-  mutate(orderForVar = ifelse(type== 'device', -odds+ 10^8,
-                              ifelse(type== 'previous status', -odds+ 10^6,
-                              ifelse(type== 'Experience' , 10^3,
-                              ifelse(type== 'additional EQA', -odds+ 10^4,
-                              ifelse(type== 'Number of previous EQA', -odds+ 10^2, 2 )))))) %>%
-  mutate(orderForVar = ifelse(type== 'Experience' & var == 'seqGrpnew',
-                              orderForVar+2, orderForVar)) %>%
-  mutate(orderForVar = ifelse(type== 'Experience' & var == 'seqGrpintermediate',
-                            orderForVar+1, orderForVar)) %>%
-  filter(!is.na(type)) %>%
-  mutate(type=factor(type)) %>%
-  mutate(var = fct_reorder(var, orderForVar)) 
-  
-  
-
-ggplot(oddsMultiGoodPOCT,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  xlab('') +
-  geom_hline(yintercept = 1) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
-  scale_x_discrete(labels = oddsLabels) +
-  theme_pub()
-
- ggpub('oddsMultiGoodPOCT', height= 80)
-
-
-#### multi odds CL ----
-resMultiGoodCL <- glm(good~seqGrp+poct+status.prev+eqaRound+device, 
-                        data = byMulti %>% 
-                          filter(eqa == 'RfB KS'), 
-                        family = binomial(link = "logit"))
-
-oddsMultiGoodCL <- 
-  exp(cbind(odds = coef(resMultiGoodCL), confint(resMultiGoodCL)))
-
-oddsMultiGoodCL <- as.data.frame(oddsMultiGoodCL)
-
-oddsMultiGoodCL$var <- row.names(oddsMultiGoodCL)
-colnames(oddsMultiGoodCL) <- make.names(colnames(oddsMultiGoodCL))
-
-oddsMultiGoodCLX <- oddsMultiGoodCL %>% 
-  filter(!is.na(X2.5..)) %>% 
-  filter(!is.na(X97.5..)) %>%
-  filter(var != '(Intercept)') %>%
-  mutate(type = ifelse(str_detect(var, 'device'), 'device', NA)) %>%
-  mutate(type = ifelse(str_detect(var, 'status.prev'), 'previous status', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'extraEqa'), 'additional EQA', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'seq'), 'Number of previous EQA', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'poct'), 'POCT', type)) %>%
-  mutate(type = ifelse(str_detect(var, 'seqGrp'), 'Experience', type)) %>%
-  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
-                       type = c('POCT', 
-                                'previous status', 
-                                'Experience', 
-                                'device'),
-                       var = c('has no POCT',
-                               'status.prevacceptable',
-                               'seqGrpintermediate',
-                               'others'))) %>%
-  # mutate(var = ifelse(str_detect(var, ' -- '),
-  #                     str_sub(var, str_locate(var, ' -- ')[, 'end']+1),
-  #                     var)) %>%
-  # mutate(var = str_replace_all(var, ' -- ', ": ")) %>%
-  mutate(var = str_replace_all(var, 'device', "")) %>%
-  mutate(var = str_replace(var, '/(\\w{1})', "/ \\1")) %>%
-  rowwise() %>%
-  mutate(var = ifelse(str_length(var) > 40, 
-                      paste(strwrap(var, 40), collapse ="\n"),
-                      var)) %>%  
-  ungroup() %>%
-  mutate(var = factor(var)) %>%
-  mutate(orderForVar =  
-           ifelse(type== 'device', -odds+ 10^8,
-           ifelse(type== 'previous status', -odds+ 10^6,
-           ifelse(type== 'Experience' , 10^3,
-           ifelse(type== 'additional EQA', -odds+ 10^4,
-                       ifelse(type== 'Number of previous EQA', -odds+ 10^2, 2)))))) %>%
-  mutate(orderForVar = ifelse(type== 'Experience' & var == 'seqGrpnew', 
-                              orderForVar+2, orderForVar)) %>%
-  mutate(orderForVar = ifelse(type== 'Experience' & var == 'seqGrpintermediate', 
-                              orderForVar+1, orderForVar)) %>%
-  filter(!is.na(type)) %>%
-  mutate(var = fct_reorder(var, orderForVar))
-
-
-ggplot(oddsMultiGoodCLX,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  xlab('') +
-  geom_hline(yintercept = 1) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
-  scale_x_discrete(labels = oddsLabels) +
-  theme_pub() +
-  theme(axis.text.x = element_text(size=6))
-
-ggpub('oddsMultiGoodCL', height = 220)
+ 
 
 ### Imputation ----
 
@@ -499,6 +329,7 @@ ggplot()+
   geom_point(data = oddsMultiGoodImp, aes(x=var, y=odds), colour='red', shape=4)+
   coord_flip() +
   xlab('') +
+  ylab('multivariate odds ratios') + 
   geom_hline(yintercept = 1) +
   scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
   scale_x_discrete(labels = oddsLabels) +
@@ -563,7 +394,8 @@ ggpub('oddsMultiNotFailed', height= 80)
 
 # all single good ---------------
 
-oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, oddsParticipateGood) %>%
+oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, 
+                     oddsSeqGrpEQAGood, oddsParticipateGood) %>%
   mutate(var = ifelse(var == 'extraEqaInstand 100' | 
                         var == 'extraEqaRfB KS', 'centralLabcentralLab', 
                              var)) %>%
@@ -573,7 +405,9 @@ oddsAllGood <- rbind(oddsPrevEQAGood, oddsSeqEQAGood, oddsParticipateGood) %>%
   mutate(var = ifelse(var == 'extraEqaInstand 800' | 
                         var == 'extraEqaRfB GL', 'poct', 
                       var)) %>%
-  mutate(var = ifelse(var == 'acceptable', 'status.prevacceptable', var))
+  mutate(var = ifelse(var == 'acceptable', 'status.prevacceptable', var)) %>%
+  mutate(var = factor(var)) %>%
+  commonOrder()
   
 ggplot(oddsAllGood,
        aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
