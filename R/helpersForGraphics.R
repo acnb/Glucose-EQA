@@ -20,9 +20,11 @@ commonOrder <- function(d){
     paste0(o, orders[[o]])
   }
   
-  vOrder <- c(concatOrders("status.prev"), 
+  vOrder <- c(concatOrders("extraEqa"),
               concatOrders("seqGrp"), 
-              concatOrders("extraEqa"))
+              'seq',
+              concatOrders("status.prev")
+              )
   
   orders <- append(orders, list("var" = vOrder))
   
