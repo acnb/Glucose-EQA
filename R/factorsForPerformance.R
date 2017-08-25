@@ -100,12 +100,20 @@ bySeqEQAGraph <- bySeqEQAAll %>%
   ungroup() %>%
   commonOrder()
 
-pBySeqEQA <- ggplot(bySeqEQAGraph, aes(x=seqGrp, y=p, fill=status)) +
-  geom_col(position = position_stack(reverse = TRUE)) +
+bySeqEQAGraphN <- bySeqEQAAll %>%
+  group_by(eqa, seqGrp) %>%
+  summarise(n=n()) %>%
+  ungroup() %>%
+  commonOrder()
+
+pBySeqEQA <-  ggplot() +
+  geom_col(data=bySeqEQAGraph, aes(x=seqGrp, y=p, fill=status),
+           position = position_stack(reverse = TRUE)) +
+  geom_text(data=bySeqEQAGraphN, aes(x=seqGrp, y=1.1, label=n), size=3) +
   facet_grid(.~eqa) +
   theme_pub(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_y_continuous(labels=percent) +
+  scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
   scale_fill_manual(values=colors.status) +
   xlab('number of previous EQAs') +
   ylab('percentage of individual EQA participations') +
@@ -138,6 +146,10 @@ byParticipateGraph <- byParticipateAll %>%
   summarise(n=n()) %>%
   mutate(p=n/sum(n))
 
+byParticipateGraphN <- byParticipateAll %>% 
+  group_by(eqa, extraEqa) %>%
+  summarise(n=n()) 
+
 byParticipateLog <- byParticipateAll %>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
@@ -147,12 +159,14 @@ oddsParticipateGood <- calcOdds(byParticipateLog, 'extraEqa', 'good')
 oddsParticipateNotFailed <- calcOdds(byParticipateLog, 'extraEqa', 'notFailed')
 
 
-pByParticipate <- ggplot(byParticipateGraph, aes(x=extraEqa, 
-                                       y=p, fill=status)) + 
-  geom_col(position = position_stack(reverse = TRUE)) +
+pByParticipate <- ggplot() + 
+  geom_col(data = byParticipateGraph, aes(x=extraEqa,  y=p, fill=status),
+           position = position_stack(reverse = TRUE)) +
+  geom_text(data = byParticipateGraphN, aes(x=extraEqa, y=1.1, label=n),
+            size=3)+ 
   facet_grid(.~eqa, scales = 'free_x') +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
-  scale_y_continuous(labels=percent) +
+  scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
   scale_fill_manual(values=colors.status) +
   xlab('additional participation in other EQAs') +
   ylab('percentage of individual EQA participations') +
@@ -189,6 +203,11 @@ byPrevEQAGraph <- byPrevEQAAll%>%
   mutate(p=n/sum(n)) %>%
   ungroup()
 
+byPrevEQAGraphN <- byPrevEQAAll%>%
+  group_by(eqa, status.prev) %>%
+  summarise(n=n()) %>%
+  ungroup()
+
 byPrevEQALog <- byPrevEQAAll%>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status == 'failed', 0, 1)) %>%
@@ -201,11 +220,14 @@ oddsPrevEQAGood <- calcOdds(byPrevEQALog, 'status.prev', 'good')
 oddsPrevEQANotFailed <- calcOdds(byPrevEQALog, 'status.prev', 'notFailed')
 
 
-pByPrevEQA <- ggplot(byPrevEQAGraph, aes(x=status.prev, y=p, fill=status)) +
-  geom_col(position = position_stack(reverse = TRUE)) +
+pByPrevEQA <- ggplot() +
+  geom_col(data = byPrevEQAGraph, aes(x=status.prev, y=p, fill=status),
+           position = position_stack(reverse = TRUE)) +
+  geom_text(data = byPrevEQAGraphN, aes(x=status.prev, y=1.1, label=n),
+            size= 3) +
   facet_grid(~eqa) +
   scale_fill_manual(values=colors.status) +
-  scale_y_continuous(labels=percent)+
+  scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
   ylab('percentage of individual EQA participations') +
   xlab('previous result')+
   theme_pub(base_size = 10) +
@@ -347,7 +369,7 @@ ggplot(oddsMultiGoodPOCT,
   geom_errorbar() + 
   coord_flip() +
   xlab('') +
-  ylab('multivariate odds ratios')
+  ylab('multivariate odds ratios') +
   geom_hline(yintercept = 1) +
   scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
   scale_x_discrete(labels = oddsLabels) +
