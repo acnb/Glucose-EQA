@@ -13,8 +13,21 @@ oddsLabels <- c('seq' = 'number of previous participations',
                 'seqGrpexperienced' = '"experienced" participant',
                 'poctPOCT' = 'has POCT',
                 'extraEqanone' = 'no additional EQA',
-                'extraEqaCL' = 'additional CL EQA',
-                'extraEqaPOCT' = 'additional POCT EQA')
+                'extraEqaPOCT' = 'additional POCT EQA',
+                'extraEqaCL' = 'additional CL EQA')
+
+replaceCLNames <- function(str){
+  str <- case_when(str_detect(str, 'Hexokinase --') ~ paste(str, '[HK]'),
+                   str_detect(str, 'Glucose oxidase/PAP --') ~ 
+                     paste(str, '[GO/PAP]'),
+                   str_detect(str, 'Glucose oxidase/H2O2-electrode -- ') ~ 
+                     paste(str, '[GO/H2O2]'), 
+                   TRUE ~ str)
+  
+  str_replace_all(str, c('Hexokinase -- ' = "", 
+                         'Glucose oxidase/PAP -- ' ="",
+                         'Glucose oxidase/H2O2-electrode -- ' =""))
+}
 
 
 calcOdds <- function(data, x, y){
@@ -644,6 +657,7 @@ ggplot()+
   geom_point(data = oddsMultiGoodImp, aes(x=var, y=odds), colour='red', shape=4)+
   coord_flip() +
   xlab('') +
+  ylab('multivariate odds ratios') + 
   geom_hline(yintercept = 1) +
   scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
   scale_x_discrete(labels = oddsLabels) +
