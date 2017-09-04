@@ -384,9 +384,10 @@ byMulti <- eqaAllMulti %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
   mutate(seq = ifelse(hasFullSeq | seq > 8, seq, NA)) %>%
   filter(abs(relDiff) < .45) %>%
-  mutate(seqGrp = case_when(seq == 1 ~ 'new', 
-                         seq <= 10 ~ 'intermediate',
-                         TRUE ~ 'experienced' )) %>%
+  mutate(seqGrp = case_when(is.na(seq) ~ NA_character_,
+                            seq == 1 ~ 'new', 
+                            seq <= 10 ~ 'intermediate',
+                            TRUE ~ 'experienced' )) %>%
   mutate(seqGrp = factor(seqGrp)) %>%
   ungroup() %>%
   left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
@@ -440,8 +441,8 @@ oddsMultiGoodPOCT$var <- row.names(oddsMultiGoodPOCT)
 colnames(oddsMultiGoodPOCT) <- make.names(colnames(oddsMultiGoodPOCT))
 
 oddsMultiGoodPOCT <- oddsMultiGoodPOCT %>% 
-  filter(!is.na(X2.5..)) %>% 
-  filter(!is.na(X97.5..)) %>%
+ # filter(!is.na(X2.5..)) %>% 
+ # filter(!is.na(X97.5..)) %>%
   filter(var != '(Intercept)') %>%
   filter(!str_detect(var, 'eqaRound')) %>%
   bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
@@ -550,21 +551,27 @@ mice.impute.seq <- function(y, ry, x, fullData, ...){
   fullData$seq[!ry]  
   
 }
+seqGrpFromSeq <- function(seq){
+  case_when(seq == 1 ~ 'new', 
+            seq <= 10 ~ 'intermediate',
+            TRUE ~ 'experienced' )
+}
 
-meths <- c('eqa' = '', 'seq' = 'seq', 'extraEqa'= '', 'status.prev' = 'polyreg',
-           'sharedDevice' = '', 'notFailed' = '', 'good' = '', 'eqaRound' = '')
+meths <- c('eqa' = '', 'seq' = 'seq', 'seqGrp' = '~seqGrpFromSeq(seq)',
+           'extraEqa'= '', 'status.prev' = 'polyreg', 'sharedDevice' = '',
+           'notFailed' = '', 'good' = '', 'eqaRound' = '') 
 
 byMulitMice <- mice(byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                      select(-year, -pid, -round, -id, -seqGrp,
-                             -nlabs, -device), 
+                      select(-pid, -round,  -id,  -device, -year, -nlabs), 
                  method = meths,
                  m=5, 
-                 fullData = byMulti %>% 
-                   filter(eqa=='Instand 800' | eqa == 'RfB GL'))
+                  fullData = byMulti %>% 
+                    filter(eqa=='Instand 800' | eqa == 'RfB GL')
+                 )
 
 fitMulti <- with(data=byMulitMice, 
-                 exp=glm(good~seq+extraEqa+status.prev+sharedDevice+eqaRound,
+                 exp=glm(good~seqGrp+extraEqa+status.prev+sharedDevice+eqaRound,
                          family = binomial(link = "logit")))
 
 pooledFitMulti <- pool(fitMulti)
@@ -594,21 +601,27 @@ filter(!str_detect(var, 'eqaRound')) %>%
   mutate(var = fct_reorder(var, orderForVar)) %>%
   commonOrder()
 
+cc <- complete(byMulitMice, 1)
 
 oddsMultiGoodImpX <- oddsMultiGoodImp %>%
   filter(var != '(Intercept)') %>%
   filter(!str_detect(var, 'eqaRound')) %>%
   mutate(var = ifelse(str_detect(var, 'status.prev'),
                                  paste0('status.prev', 
-                                        levels(byMulti$status.prev)[
+                                        levels(cc$status.prev)[
                                           as.numeric(str_match(var, '\\d+')[,1])]),
                                  var)) %>%
   mutate(var = ifelse(str_detect(var, 'sharedDevice'),
                        paste0('device', 
-                      levels(byMulti$sharedDevice)[
+                      levels(cc$sharedDevice)[
                                as.numeric(str_match(var, '\\d+')[,1])]),
                       var)) %>%
-  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
+  mutate(var = ifelse(str_detect(var, 'seqGrp'),
+                      paste0('seqGrp', 
+                             levels(cc$seqGrp)[
+                               as.numeric(str_match(var, '\\d+')[,1])]),
+                      var)) %>%
+  bind_rows(data_frame(odds = 1, 
                        var = c('extraEqanone',
                                'status.prevacceptable',
                                'seqGrpintermediate',
@@ -652,9 +665,10 @@ oddsMultiGoodImpX <- oddsMultiGoodImp %>%
   mutate(var = fct_reorder(var, orderForVar))
 
 ggplot()+
-  geom_point(data = oddsMultiGoodPOCT, aes(x=var, y=odds))+
+ #geom_point(data = oddsMultiGoodImpX, aes(x=var, y=odds))+
   geom_errorbar(data = oddsMultiGoodPOCT, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
-  geom_point(data = oddsMultiGoodImp, aes(x=var, y=odds), colour='red', shape=4)+
+  geom_point(data = oddsMultiGoodImpX, aes(x=var, y=odds), colour='red', shape=4)+
+  geom_point(data = oddsMultiGoodPOCT, aes(x=var, y=odds))+
   coord_flip() +
   xlab('') +
   ylab('multivariate odds ratios') + 

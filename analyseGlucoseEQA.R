@@ -11,10 +11,7 @@ library(boot)
 library(forcats)
 library(rtf)
 
-#source("C:/Users/andi/Dropbox/Papers/graphsForPublications.R")
-
-
-base.dir <- paste0(here::here(), '/')
+#base.dir <- paste0(here::here(), '/')
 
 
 load(here::here('data', 'eqaAll.RData'))
