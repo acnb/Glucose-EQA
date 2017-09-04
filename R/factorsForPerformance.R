@@ -84,7 +84,7 @@ bySeqEQAAll <- eqaAll %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
   filter(!(year == 2012 & seq == 1 & round < 3)) %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
-  filter(hasFullSeq | seq > 8) %>%
+  filter(hasFullSeq | seq > 10) %>%
   filter(abs(relDiff) < .5) %>%
   mutate(seqGrp = case_when(seq == 1 ~  'new', 
                          seq <= 10 ~ 'intermediate',
@@ -382,13 +382,14 @@ byMulti <- eqaAllMulti %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
   mutate(seq = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
-  mutate(seq = ifelse(hasFullSeq | seq > 8, seq, NA)) %>%
+  mutate(seq = ifelse(hasFullSeq | seq > 10, seq, NA)) %>%
   filter(abs(relDiff) < .45) %>%
   mutate(seqGrp = case_when(is.na(seq) ~ NA_character_,
                             seq == 1 ~ 'new', 
                             seq <= 10 ~ 'intermediate',
                             TRUE ~ 'experienced' )) %>%
   mutate(seqGrp = factor(seqGrp)) %>%
+  mutate(seq = ifelse(hasFullSeq, seq, NA)) %>%
   ungroup() %>%
   left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
   filter(as.character(extraEqa) != as.character(eqa)) %>%
@@ -532,15 +533,17 @@ mice.impute.seq <- function(y, ry, x, fullData, ...){
   fullData <- fullData %>% 
     group_by(eqa, pid) %>%
     mutate(rank = dense_rank(year*100+round)) %>%
+    mutate(randomSel = ((1:n()) == base::sample(1:n(), 1))) %>%
     ungroup()
   
-  first <- fullData$rank == 1
+  missingFirst <- fullData$rank == 1 & !ry
+  notMissingRandomlySelected <- fullData$randomSel & ry
   
-  sel <- ry | first
+  sel <- missingFirst | notMissingRandomlySelected
   
   imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
   
-  fullData[!ry & first, 'seq'] <- imputeFirst
+  fullData[missingFirst, 'seq'] <- imputeFirst
   
   fullData <- fullData %>% 
     group_by(eqa, pid) %>%
@@ -557,13 +560,14 @@ seqGrpFromSeq <- function(seq){
             TRUE ~ 'experienced' )
 }
 
-meths <- c('eqa' = '', 'seq' = 'seq', 'seqGrp' = '~seqGrpFromSeq(seq)',
-           'extraEqa'= '', 'status.prev' = 'polyreg', 'sharedDevice' = '',
+meths <- c('eqa' = '', 'seq' = 'seq', 
+           'seqGrp' = '~seqGrpFromSeq(seq)', 'extraEqa'= '',
+           'status.prev' = 'polyreg', 'sharedDevice' = '',
            'notFailed' = '', 'good' = '', 'eqaRound' = '') 
 
 byMulitMice <- mice(byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                      select(-pid, -round,  -id,  -device, -year, -nlabs), 
+                      select(-pid,  -id,  -device,  -nlabs, -year, -round), 
                  method = meths,
                  m=5, 
                   fullData = byMulti %>% 
