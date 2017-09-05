@@ -352,8 +352,16 @@ for(e in unique(oddsDeviceGood$eqa)){
 
 
 eqaAllMulti <- eqaAll %>%
-  filter(abs(relDiff) < .45) %>%
-  ungroup()
+  group_by(id) %>%
+  mutate(rd1 = relDiff[1],
+         rd2 = relDiff[2]
+         ) %>%
+  ungroup() %>% 
+  dplyr::select(year, eqa, id, sharedDevice, device, eqaRound, pid, round, status,
+                rd1, rd2) %>%
+  unique()
+
+
 
 prevMulti <- eqaAllMulti %>% 
   group_by(pid, eqa) %>%
@@ -380,10 +388,10 @@ eqasByYearMulti <- eqaAllMulti %>%
 byMulti <- eqaAllMulti %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
+  mutate(seqYear = dense_rank(year)) %>% 
   mutate(seq = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
   mutate(seq = ifelse(hasFullSeq | seq > 10, seq, NA)) %>%
-  filter(abs(relDiff) < .45) %>%
   mutate(seqGrp = case_when(is.na(seq) ~ NA_character_,
                             seq == 1 ~ 'new', 
                             seq <= 10 ~ 'intermediate',
@@ -403,13 +411,13 @@ byMulti <- eqaAllMulti %>%
   mutate(extraEqa = fct_collapse(extraEqa, 
                                  'CL' =  c('Instand 100', 'RfB KS'),
                                  'POCT' = c('Instand 800', 'RfB GL'))) %>%
-  dplyr::select(year, eqa, id, seq, seqGrp, extraEqa, 
+  dplyr::select(year, eqa, id, seq, seqGrp, seqYear, extraEqa, 
                 status.prev, sharedDevice, device, notFailed, 
-                good, eqaRound, pid, round) %>%
+                good, eqaRound, pid, round, rd1, rd2) %>%
   group_by(sharedDevice, eqa) %>%
-  mutate(n = n()) %>%
+  mutate(n = n(), nlabs = n_distinct(pid)) %>%
   ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 100, 
+  mutate(sharedDevice = ifelse(n < 100 | nlabs < 10, 
                                "others", sharedDevice)) %>%
   group_by(device, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
@@ -424,7 +432,7 @@ byMulti <- eqaAllMulti %>%
   mutate(sharedDevice = fct_relevel(sharedDevice, 'others')) %>%
   mutate(device = as.factor(device)) %>%
   mutate(device = fct_relevel(device, 'others')) %>%
-  mutate(seqGrp = fct_relevel(seqGrp, 'intermediate')) %>%
+  mutate(seqGrp = fct_relevel(seqGrp, 'new')) %>%
   mutate(status.prev = fct_relevel(status.prev, 'acceptable')) %>%
   mutate(extraEqa = fct_relevel(extraEqa, 'none'))
 
@@ -530,18 +538,36 @@ ggpub('oddsMultiGoodCL', height = 220)
 
 #' @seealso https://stats.stackexchange.com/questions/78632/multiple-imputation-for-missing-values
 mice.impute.seq <- function(y, ry, x, fullData, ...){
-  fullData <- fullData %>% 
-    group_by(eqa, pid) %>%
-    mutate(rank = dense_rank(year*100+round)) %>%
-    mutate(randomSel = ((1:n()) == base::sample(1:n(), 1))) %>%
-    ungroup()
+  errorEncountered <- TRUE
+  n <- 0
+
+  while(errorEncountered){
+    tryCatch({
+      errorEncountered <- FALSE
+      fullData <- fullData %>% 
+        group_by(eqa, pid) %>%
+        mutate(rank = dense_rank(year*100+round)) %>%
+        mutate(randomSel = ((1:n()) == base::sample(1:n(), 1))) %>%
+        ungroup()
+      
+      missingFirst <- fullData$rank == 1 & !ry
+      notMissingRandomlySelected <- fullData$randomSel & ry
+      
+      sel <- missingFirst | notMissingRandomlySelected
+      
+      imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
+    },
+    error = function(x){
+      print('repeat')
+      errorEncountered <<- TRUE
+      return(NA)
+    },
+    finally = {
+      
+    }
+    )
+  }
   
-  missingFirst <- fullData$rank == 1 & !ry
-  notMissingRandomlySelected <- fullData$randomSel & ry
-  
-  sel <- missingFirst | notMissingRandomlySelected
-  
-  imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
   
   fullData[missingFirst, 'seq'] <- imputeFirst
   
@@ -554,20 +580,67 @@ mice.impute.seq <- function(y, ry, x, fullData, ...){
   fullData$seq[!ry]  
   
 }
+
+
+mice.impute.seq <- function(y, ry, x, fullData, ...){
+  errorEncountered <- TRUE
+  n <- 0
+  
+  while(errorEncountered){
+    tryCatch({
+      errorEncountered <- FALSE
+      fullData <- fullData %>% 
+        group_by(eqa, pid) %>%
+        mutate(rank = dense_rank(year*100+round)) %>%
+        mutate(randomSel = TRUE) %>%
+        ungroup()
+      
+      missingFirst <- fullData$rank == 1 & !ry
+      notMissingRandomlySelected <- fullData$randomSel & ry
+      
+      sel <- missingFirst | notMissingRandomlySelected
+      
+      imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
+    },
+    error = function(x){
+      print('repeat')
+      errorEncountered <<- TRUE
+      return(NA)
+    },
+    finally = {
+      
+    }
+    )
+  }
+  
+  
+  fullData[missingFirst, 'seq'] <- imputeFirst
+  
+  fullData <- fullData %>% 
+    group_by(eqa, pid) %>%
+    mutate(seq = ifelse(is.na(seq), rank+min(seq, na.rm=TRUE)-1,
+                        seq)) %>%
+    ungroup()
+  
+  fullData$seq[!ry]  
+  
+}
+
 seqGrpFromSeq <- function(seq){
   case_when(seq == 1 ~ 'new', 
             seq <= 10 ~ 'intermediate',
             TRUE ~ 'experienced' )
 }
 
-meths <- c('eqa' = '', 'seq' = 'seq', 
+meths <- c('year' = '', 'eqa' = '', 'seq' = 'seq', 
            'seqGrp' = '~seqGrpFromSeq(seq)', 'extraEqa'= '',
-           'status.prev' = 'polyreg', 'sharedDevice' = '',
-           'notFailed' = '', 'good' = '', 'eqaRound' = '') 
+           'status.prev' = 'polyreg', 'sharedDevice' = '', 'device' = '',
+           'notFailed' = '', 'good' = '', 'eqaRound' = '', 'round' = '',
+            'rd1' = '', 'rd2' = '') 
 
 byMulitMice <- mice(byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                      select(-pid,  -id,  -device,  -nlabs, -year, -round), 
+                      select(-pid, -id,  -nlabs,), 
                  method = meths,
                  m=5, 
                   fullData = byMulti %>% 
@@ -583,27 +656,27 @@ oddsMultiGoodImp <- data.frame(odds = exp(pooledFitMulti$qbar))
 oddsMultiGoodImp$var <- row.names(oddsMultiGoodImp)
 colnames(oddsMultiGoodImp) <- make.names(colnames(oddsMultiGoodImp))
 #
-filter(!str_detect(var, 'eqaRound')) %>%
-  bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
-                       type = c('extraEqa', 
-                                'previous status', 
-                                'Experience', 
-                                'device'),
-                       var = c('extraEqanone',
-                               'status.prevacceptable',
-                               'seqGrpintermediate',
-                               'deviceothers'))) %>%
-  mutate(orderForVar =  ifelse(str_detect(var, 'device'), 100+odds, 0)) %>%
-  mutate(var = str_replace_all(var, 'device', "")) %>%
-  mutate(var = replaceCLNames(var)) %>%
-  rowwise() %>%
-  mutate(var = ifelse(str_length(var) > 40, 
-                      paste(strwrap(var, 40), collapse ="\n"),
-                      var)) %>%  
-  ungroup() %>%
-  mutate(var = factor(var)) %>%
-  mutate(var = fct_reorder(var, orderForVar)) %>%
-  commonOrder()
+# filter(!str_detect(var, 'eqaRound')) %>%
+#   bind_rows(data_frame(odds = 1, X2.5.. = 1, X97.5.. = 1, 
+#                        type = c('extraEqa', 
+#                                 'previous status', 
+#                                 'Experience', 
+#                                 'device'),
+#                        var = c('extraEqanone',
+#                                'status.prevacceptable',
+#                                'seqGrpintermediate',
+#                                'deviceothers'))) %>%
+#   mutate(orderForVar =  ifelse(str_detect(var, 'device'), 100+odds, 0)) %>%
+#   mutate(var = str_replace_all(var, 'device', "")) %>%
+#   mutate(var = replaceCLNames(var)) %>%
+#   rowwise() %>%
+#   mutate(var = ifelse(str_length(var) > 40, 
+#                       paste(strwrap(var, 40), collapse ="\n"),
+#                       var)) %>%  
+#   ungroup() %>%
+#   mutate(var = factor(var)) %>%
+#   mutate(var = fct_reorder(var, orderForVar)) %>%
+#   commonOrder()
 
 cc <- complete(byMulitMice, 1)
 
