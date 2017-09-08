@@ -11,9 +11,6 @@ library(boot)
 library(forcats)
 library(rtf)
 
-#base.dir <- paste0(here::here(), '/')
-
-
 load(here::here('data', 'eqaAll.RData'))
 
 load(here::here('data', 'sharedDevs.RData'))
