@@ -1,12 +1,18 @@
 params.single.devices <- eqaAll %>%
   filter(eqa != 'Instand 100') %>%
   filter(!str_detect(device, "Anderer Hersteller, other producer")) %>%
+  filter(!str_detect(device, "Andere Geräte")) %>%
+  filter(!str_detect(device, "andere Geräte")) %>%
   mutate(charDev = ifelse(is.na(sharedDevice) | sharedDevice == 'others', 
                           as.character(device),
                           as.character(sharedDevice))) %>%
   filter(abs(relDiff) < .45) %>%
-  filter(n() > 100) %>%
   filter(device != 'others') %>%
+  group_by(eqa, device) %>%
+  mutate(n = n(), nlabs = n_distinct(pid)) %>%
+  ungroup() %>%
+  filter(n > 100) %>%
+  filter(nlabs > 10) %>%
   group_by(eqa, charDev, rmv) %>%
   filter(n() > 7) %>%
   summarise(sd = getSfromAlgA(value), 
@@ -17,10 +23,9 @@ params.single.devices <- eqaAll %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
   mutate(cv = sd/targetAlgA) %>%
-  mutate(charDev = ifelse(str_detect(charDev, ' -- '),
-    str_sub(charDev, str_locate(charDev, ' -- ')[, 'end']+1),
-    charDev)) %>%
-  mutate(charDev = str_replace(charDev, '/(\\w{1})', "/ \\1")) %>%
+  rowwise() %>%
+  mutate(charDev = replaceCLNames(charDev)) %>%
+  ungroup() %>%
   mutate(type = ifelse(eqa == "RfB KS", 'central lab', 'POCT'))
 
 
