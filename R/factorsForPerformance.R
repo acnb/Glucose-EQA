@@ -386,14 +386,14 @@ resMultiGoodCL <- glm(good~ seqGrp+ extraEqa +  eqaRound + device,
                       family = binomial(link = "logit"))
 
 plotMultiGoodCL <- multivariatePlot(resMultiGoodCL)
-ggpub('oddsMultiGoodCL', height = 220, plot = plotMultiGoodCL)
+ggpub('oddsMultiGoodCL', height = 160, plot = plotMultiGoodCL)
 
 resMultiCLNotFailed <- glm(notFailed~ seqGrp+ extraEqa +  eqaRound + device, 
                       data = byMultiComplete %>% filter(eqa == 'RfB KS'), 
                       family = binomial(link = "logit"))
 
 plotMultiNotFailedCL <- multivariatePlot(resMultiCLNotFailed)
-ggpub('oddsMultiNotFailedCL', height = 220, plot = plotMultiNotFailedCL)
+ggpub('oddsMultiNotFailedCL', height = 160, plot = plotMultiNotFailedCL)
 
 ## imputation ----
 

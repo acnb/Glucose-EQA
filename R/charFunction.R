@@ -163,7 +163,8 @@ cv.by.device.table <- cv.by.device %>%
     beta = paste0(beta, collapse = ", \n")) %>%
   ungroup() %>%
   filter(device != 'others') %>%
-  arrange(type, device)
+  arrange(type, device) %>%
+  mutate(device = str_replace(device, '\n', ''))
 
 rtf<-RTF(here('tab', 'precision.rtf'))
 addTable(rtf,cv.by.device.table)

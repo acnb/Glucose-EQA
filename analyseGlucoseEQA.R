@@ -21,8 +21,8 @@ source(here::here('R', 'algAFuncs.R'))
 
 source(here::here('R', 'description.R'))
 source(here::here('R', 'frequencyOfDeviations.R'))
-source(here::here('R', 'charFunction.R'))
 source(here::here('R', 'factorsForPerformance.R'))
+source(here::here('R', 'charFunction.R'))
 source(here::here('R', 'pathway.R'))
 source(here::here('R', 'lots.R'))
 source(here::here("R", "biasBudget.R")) # needs results from 'charFunction.R'
