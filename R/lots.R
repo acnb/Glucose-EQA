@@ -2,7 +2,7 @@ frequentLots <- eqaAll %>%
   filter(!is.na(value)) %>%
   filter(!is.na(lot)) %>%
   mutate(lot = factor(lot)) %>%
-  filter(abs(relDiff) < .5) %>%
+  filter(abs(relDiff) < .45) %>%
   group_by(round, sample, lot, device, year) %>%
   mutate(n_in_lot = n()) %>%
   filter(n_in_lot > 7) %>%
@@ -22,7 +22,7 @@ diffBetweenLots$over <- ifelse(diffBetweenLots$all > 0.05, 'o', 'u')
 
 diffBetweenLots$id <- as.factor(1:nrow(diffBetweenLots))
 
-save(file=paste0(base.dir, 'generated/diffsInLots.RData'), diffBetweenLots)
+save(file=here('generated', 'diffsInLots.RData'), diffBetweenLots)
 
 pLots <- ggplot(diffBetweenLots, 
                 aes(x=id, y=all, ymin=p025, ymax=p975, fill=over))+ 
@@ -30,7 +30,7 @@ pLots <- ggplot(diffBetweenLots,
   coord_flip() +
   scale_fill_manual(values=c('o'= 'black', 'u' = 'white')) +
   scale_y_continuous(labels=percent) +
-  theme_Publication(base_size = 10) +
+  theme_pub(base_size = 10) +
   theme(axis.text.y=element_blank(),  
         axis.ticks.y = element_blank(),
         panel.grid.minor.y = element_blank(),
@@ -39,5 +39,4 @@ pLots <- ggplot(diffBetweenLots,
   xlab('') +
   ylab("maximum difference between lots\n in same EQA round")
 
-ggsave(paste0(base.dir, 'fig/lots.png'),
-       pLots,  dpi = 600, width = 85, height= 100, units='mm')
+ggpub('lots', width = 85, height= 100)

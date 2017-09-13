@@ -89,9 +89,8 @@ addTable(rtf,budgetByDevice.CharFunc)
 done(rtf)
 
 
-ggplot(budgetByDevice.CV %>% filter(sharedDevice != 'others'),
-       aes(x=sharedDevice, ymin=budgetLower, 
-                              ymax=budgetUpper, color=eqa))+
+ggplot(budgetByDevice.CV %>% filter(charDev != 'others'),
+       aes(x=charDev, ymin=budgetLowerAbs, ymax=budgetUpperAbs, color=eqa))+
   geom_errorbar()+
   theme_pub() +
   ylab('allowed bias (mg/dl)') +

@@ -111,7 +111,6 @@ eqasByYearMulti <- eqaAllMulti %>%
 byMulti <- eqaAllMulti %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
-  mutate(seqYear = dense_rank(year), seqSimple = seq) %>% 
   mutate(seq = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
   mutate(hasFullSeq = (1 %in% seq)) %>%
   mutate(seq = ifelse(hasFullSeq | seq > 10, seq, NA)) %>%
@@ -119,10 +118,6 @@ byMulti <- eqaAllMulti %>%
                             seq == 1 ~ 'new', 
                             seq <= 10 ~ 'intermediate',
                             TRUE ~ 'experienced' )) %>%
-  mutate(seqGrpSimple = case_when(!hasFullSeq ~ 'experienced',
-                                  seq == 1 ~ 'new', 
-                                  seq <= 10 ~ 'intermediate',
-                                  TRUE ~ 'experienced' )) %>%
   mutate(seqGrp = factor(seqGrp)) %>%
   mutate(seq = ifelse(hasFullSeq, seq, NA)) %>%
   ungroup() %>%
@@ -139,14 +134,17 @@ byMulti <- eqaAllMulti %>%
   mutate(extraEqa = fct_collapse(extraEqa, 
                                  'CL' =  c('Instand 100', 'RfB KS'),
                                  'POCT' = c('Instand 800', 'RfB GL'))) %>%
-  dplyr::select(year, eqa, id, seq, seqGrp, seqYear, seqSimple, extraEqa, 
-                status.prev, sharedDevice, device, notFailed, seqGrpSimple,
+  dplyr::select(year, eqa, id, seq, seqGrp, extraEqa, 
+                status.prev, sharedDevice, device, notFailed, 
                 good, eqaRound, pid, round, rd1, rd2, status, extraEqaSingle) %>%
   group_by(sharedDevice, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
+  group_by(sharedDevice) %>%
+  mutate(minNLabs = min(nlabs)) %>%
   ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 100 | nlabs < 10, 
+  mutate(sharedDevice = ifelse(n < 100 | minNLabs < 10, 
                                "others", sharedDevice)) %>%
+  mutate( minNLabs = NULL) %>%
   group_by(device, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
   ungroup() %>%
@@ -180,8 +178,10 @@ byMultiComplete <- byMulti %>%
   mutate(device = ifelse(nlabs < 10, "others", device)) %>%
   group_by(sharedDevice, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
+  group_by(sharedDevice) %>%
+  mutate(minNLabs = min(nlabs)) %>%
   ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 50 | nlabs < 10,
+  mutate(sharedDevice = ifelse(n < 50 | minNLabs < 10,
                                "others", sharedDevice)) %>%
   mutate_at(vars(device, sharedDevice), as.factor) %>%
   mutate(device = fct_relevel(device, 'others')) %>%
@@ -274,16 +274,63 @@ for(e in unique(byDeviceGraph$eqa)){
 
 ### good results ----
 oddsSeqGrpGood <- calcOdds(byMulti, 'seqGrp', 'good')
-oddsPrevEqaGood <- calcOdds(byMulti, 'status.prev', 'good')
+oddsPrevEqaGood <- calcOdds(byMulti, 'status.prev', 'good') %>%
+  mutate(var = factor(var)) %>%
+  commonOrder()
 oddsSeqGood <- calcOdds(byMulti, 'seq', 'good')
 oddsParticipateGood <- calcOdds(byMulti, 'extraEqa', 'good')
 
-oddsAllGood <- rbind(oddsPrevEqaGood, oddsSeqGood, 
-                     oddsSeqGrpGood, oddsParticipateGood) %>%
-  mutate(var = factor(var)) %>%
-  commonOrder()
+oddsDevGoodCL <- calcOdds(byMulti %>% filter(eqa == 'RfB KS'), 'device',
+                          'good') %>%
+  mutate(var = str_replace(var, 'device', ''))%>%
+  arrange(odds) 
 
-ggplot(oddsAllGood,
+oddsDevGoodCL <- oddsDevGoodCL %>%
+  mutate(var = factor(var, 
+                      levels = unique(oddsDevGoodCL$var)))
+
+oddsAllGoodCL <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
+  filter(eqa %in% c('Instand 100', 'RfB KS')) %>%
+  mutate(var = factor(var)) %>%
+  commonOrder() %>%
+  mutate(var = fct_expand(var, levels(oddsDevGoodCL$var))) %>%
+  rbind(oddsDevGoodCL)
+
+ggplot(oddsAllGoodCL,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  ylab('univariate odds ratios') +
+  facet_grid(eqa~., scales = "free_y", space="free_y") +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_x_discrete(labels=oddsLabels)+
+  theme_pub()
+
+ggpub('oddsAllGoodCL', height= 200)
+
+oddsDevGoodPOCT <- calcOdds(byMulti %>% 
+                              filter(eqa %in% c('Instand 800', 'RfB GL')),
+                            'sharedDevice', 'good') %>%
+  mutate(var = str_replace(var, 'sharedDevice', ''))%>%
+  arrange(odds) 
+
+oddsDevGoodPOCT <- oddsDevGoodPOCT %>%
+  mutate(var = factor(var, 
+                      levels = 
+                        unique(oddsDevGoodPOCT[eqa == 'Instand 800', 'var'])))
+
+
+oddsAllGoodPOCT <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
+  filter(eqa %in% c('Instand 800', 'RfB GL')) %>%
+  mutate(var = factor(var)) %>%
+  commonOrder() %>%
+  mutate(var = fct_expand(var, levels(oddsDevGoodPOCT$var))) %>%
+  rbind(oddsDevGoodPOCT)
+
+ggplot(oddsAllGoodPOCT,
        aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
   geom_point()+
   geom_errorbar() + 
@@ -296,21 +343,10 @@ ggplot(oddsAllGood,
   scale_x_discrete(labels=oddsLabels)+
   theme_pub()
 
-ggpub('oddsAllGood', height= 180)
-
-### not failed results ----
-oddsSeqGrpNotFailed <- calcOdds(byMulti, 'seqGrp', 'notFailed')
-oddsPrevEqaNotFailed <- calcOdds(byMulti, 'status.prev', 'notFailed')
-oddsSeqNotFailed <- calcOdds(byMulti, 'seq', 'notFailed')
-oddsParticipateNotFailed <- calcOdds(byMulti, 'extraEqa', 'notFailed')
+ggpub('oddsAllGoodPOCT', height= 180)
 
 
-oddsAllNotFailed <- rbind(oddsPrevEqaNotFailed, oddsSeqGrpNotFailed, 
-                          oddsSeqNotFailed, oddsParticipateNotFailed) %>%
-  mutate(var = factor(var)) %>%
-  commonOrder()
-
-ggplot(oddsAllNotFailed,
+ggplot(oddsPrevEqaGood,
        aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
   geom_point()+
   geom_errorbar() + 
@@ -319,11 +355,102 @@ ggplot(oddsAllNotFailed,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
-  scale_x_discrete(label=oddsLabels) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.01,10)) +
+  scale_x_discrete(labels=oddsLabels)+
   theme_pub()
 
-ggpub('oddsAllNotFailed', height = 180)
+ggpub('oddsPrevEqaGood', height= 120)
+
+### not failed results ----
+oddsSeqGrpNotFailed <- calcOdds(byMulti, 'seqGrp', 'notFailed')
+oddsPrevEqaNotFailed <- calcOdds(byMulti, 'status.prev', 'notFailed') %>%
+  mutate(var = factor(var)) %>%
+  commonOrder()
+oddsSeqNotFailed <- calcOdds(byMulti, 'seq', 'notFailed')
+oddsParticipateNotFailed <- calcOdds(byMulti, 'extraEqa', 'notFailed')
+
+
+oddsDevNotFailedCL <- calcOdds(byMulti %>% filter(eqa == 'RfB KS'), 'device',
+                          'notFailed') %>%
+  mutate(var = str_replace(var, 'device', ''))%>%
+  arrange(odds) 
+
+oddsDevNotFailedCL <- oddsDevNotFailedCL %>%
+  mutate(var = factor(var, 
+                      levels = unique(oddsDevNotFailedCL$var)))
+
+oddsAllNotFailedCL <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
+  filter(eqa %in% c('Instand 100', 'RfB KS')) %>%
+  mutate(var = factor(var)) %>%
+  commonOrder() %>%
+  mutate(var = fct_expand(var, levels(oddsDevNotFailedCL$var))) %>%
+  rbind(oddsDevNotFailedCL)
+
+ggplot(oddsAllNotFailedCL,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  ylab('univariate odds ratios') +
+  facet_grid(eqa~., scales = "free_y", space="free_y") +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,20)) +
+  scale_x_discrete(labels=oddsLabels)+
+  theme_pub()
+
+ggpub('oddsAllNotFailedCL', height= 200)
+
+oddsDevNotFailedPOCT <- calcOdds(byMulti %>% 
+                              filter(eqa %in% c('Instand 800', 'RfB GL')),
+                            'sharedDevice', 'notFailed') %>%
+  mutate(var = str_replace(var, 'sharedDevice', ''))%>%
+  arrange(odds) 
+
+oddsDevNotFailedPOCT <- oddsDevNotFailedPOCT %>%
+  mutate(var = factor(var, 
+                      levels = 
+                        unique(oddsDevNotFailedPOCT[eqa == 'Instand 800', 'var'])))
+
+
+oddsAllNotFailedPOCT <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
+  filter(eqa %in% c('Instand 800', 'RfB GL')) %>%
+  mutate(var = factor(var)) %>%
+  commonOrder() %>%
+  mutate(var = fct_expand(var, levels(oddsDevNotFailedPOCT$var))) %>%
+  rbind(oddsDevNotFailedPOCT)
+
+ggplot(oddsAllNotFailedPOCT,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  ylab('univariate odds ratios') +
+  facet_grid(eqa~.) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,30)) +
+  scale_x_discrete(labels=oddsLabels)+
+  theme_pub()
+
+ggpub('oddsAllNotFailedPOCT', height= 180)
+
+
+ggplot(oddsPrevEqaNotFailed,
+       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
+  geom_point()+
+  geom_errorbar() + 
+  coord_flip() +
+  geom_hline(yintercept = 1) +
+  xlab('') +
+  ylab('univariate odds ratios') +
+  facet_grid(eqa~.) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.01,10)) +
+  scale_x_discrete(labels=oddsLabels)+
+  theme_pub()
+
+ggpub('oddsPrevEqaNotFailed', height= 120)
+
 
 ## multivariate odds ----
 
@@ -369,7 +496,7 @@ resMultiGoodPOCT <- glm(good~seqGrp+extraEqa+sharedDevice+eqaRound,
                         family = binomial(link = "logit"))
 
 plotMultiGoodPOCT <- multivariatePlot(resMultiGoodPOCT)
-ggpub('oddsMultiGoodPOCT', height= 80, plot = plotMultiGoodPOCT)
+ggpub('oddsMultiGoodPOCT', height= 100, plot = plotMultiGoodPOCT)
 
 resMultiNotFailedPOCT <- glm(notFailed~seqGrp+extraEqa+sharedDevice+eqaRound, 
                         data = byMultiComplete %>% 
@@ -377,7 +504,7 @@ resMultiNotFailedPOCT <- glm(notFailed~seqGrp+extraEqa+sharedDevice+eqaRound,
                         family = binomial(link = "logit"))
 
 plotMultiNotFailedPOCT  <- multivariatePlot(resMultiNotFailedPOCT)
-ggpub('oddsMultiNotFailedPOCT', height= 80, plot = plotMultiNotFailedPOCT)
+ggpub('oddsMultiNotFailedPOCT', height= 100, plot = plotMultiNotFailedPOCT)
 
 ### CL ----
 
@@ -396,6 +523,7 @@ plotMultiNotFailedCL <- multivariatePlot(resMultiCLNotFailed)
 ggpub('oddsMultiNotFailedCL', height = 160, plot = plotMultiNotFailedCL)
 
 ## imputation ----
+set.seed(1)
 
 oddsFromImpute <- function(fit, cc){
   pooled <- pool(fit)
@@ -442,13 +570,12 @@ mice.impute.impSeq <- function(y, ry, x, fullData, ...){
       fullData <- fullData %>% 
         group_by(eqa, pid) %>%
         mutate(rank = dense_rank(year*100+round)) %>%
-        mutate(randomSel = ((1:n()) == base::sample(1:n(), 1))) %>%
         ungroup()
       
       missingFirst <- fullData$rank == 1 & !ry
-      notMissingRandomlySelected <- fullData$randomSel & ry
+      notMissing <-  ry
       
-      sel <- missingFirst | notMissingRandomlySelected
+      sel <- missingFirst | notMissing
       
       imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
     },
@@ -492,8 +619,7 @@ meths <- c('year' = '', 'eqa' = '', 'seq' = 'impSeq',
 
 multiMicePOCT <- mice(byMulti %>% 
                        filter(eqa=='Instand 800' | eqa == 'RfB GL') %>%
-                       dplyr::select(-pid, -id,  -nlabs, -seqYear, -seqSimple, 
-                                    -seqGrpSimple), 
+                       dplyr::select(-pid, -id,  -nlabs), 
                     method = meths,     m=5, 
                     fullData = byMulti %>% 
                       filter(eqa=='Instand 800' | eqa == 'RfB GL')
@@ -537,8 +663,7 @@ dataMiceCL <- byMulti %>%
   mutate(device = fct_relevel(device, 'others'))
 
 multiMiceCL <- mice(dataMiceCL %>%
-                      dplyr::select(-pid, -id,  -nlabs, -seqYear, -seqSimple, 
-                                      -seqGrpSimple), 
+                      dplyr::select(-pid, -id,  -nlabs), 
                       method = meths,     m=5, 
                       fullData = dataMiceCL
 )
