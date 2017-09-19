@@ -39,9 +39,12 @@ failedYears <- eqaAll %>%
             replaceNA)
 
 
-allYears <- eqaAll %>%
+nextYears <- eqaAll %>%
   select(pid, eqa, year, status, device, round, relDiff) %>%
-  filter(device != "Anderes Gerät" & device != "others" & device != "") %>%
+  filter(device != "Anderes Gerät" &
+           device != "unspecified" &
+           device != "others" &
+           device != "") %>%
   group_by(pid, eqa, year) %>%
   summarise(nFailure = sum(status == 'failed'),
             device1 = unique(device)[1], device2 = unique(device)[2],
@@ -54,7 +57,7 @@ allYears <- eqaAll %>%
             replaceNA)
 
 actOnFailed <- failedYears %>% 
-  left_join(allYears, by=c("pid" = "pid", "year" = "year", 
+  left_join(nextYears, by=c("pid" = "pid", "year" = "year", 
                            'eqa' = 'eqa')) %>%
   mutate(act = ifelse(is.na(nFailure), 'leftEQA', 
                       ifelse(nFailure == 0, 'cont.Good', 'cont.Fail'))) %>%
@@ -69,7 +72,6 @@ actOnFailed.All <- actOnFailed %>%
   commonOrder()
 
 actOnFailed.dry <- actOnFailed %>%
-  filter(eqa == 'Instand 800' | eqa == 'RfB GL') %>%
   filter(act != 'leftEQA') %>% 
   ungroup() %>% 
   as.data.frame()
@@ -79,9 +81,7 @@ nextYearDevs <- adply(actOnFailed.dry, 1, function(x){
   newyearDev <- unique(c(x$device1, x$device2, x$device3, x$device4))
   failedDev <- failedDev[!is.na(failedDev) & failedDev != '']
   newyearDev <- newyearDev[!is.na(newyearDev) &
-                             newyearDev != '' & 
-                             newyearDev != "Anderes Gerät" & 
-                             newyearDev != "others"]
+                             newyearDev != ''  ]
   
   newDev.notFailed <- newyearDev[!newyearDev %in% failedDev]
   newDev.Failed <- newyearDev[newyearDev %in% failedDev]
