@@ -1,3 +1,13 @@
+star <- function(pval) {
+  case_when(
+    pval <= 0.001 ~ "***",
+    pval <= 0.01 ~ " **",
+    pval <= 0.05 ~ "  *",
+    TRUE ~ "   "
+  )
+}
+
+
 replaceNA <- function(x){
   x[is.na(x)] <- ''
   str_replace(x, 'NA', '')
@@ -9,7 +19,7 @@ failedYears <- eqaAll %>%
   select(pid, eqa, year, status, device, round) %>%
   unique() %>%
   group_by(pid, eqa, year) %>%
-  summarise(failedYear = sum(status == 'failed') > 1,
+  summarise(failedYear = 'failed' %in% status,
             p.device1 = unique(device[status != 'failed'])[1], 
             p.device2 = unique(device[status != 'failed'])[2],
             p.device3 = unique(device[status != 'failed'])[3], 
@@ -31,6 +41,7 @@ failedYears <- eqaAll %>%
 
 allYears <- eqaAll %>%
   select(pid, eqa, year, status, device, round, relDiff) %>%
+  filter(device != "Anderes Gerät" & device != "others" & device != "") %>%
   group_by(pid, eqa, year) %>%
   summarise(nFailure = sum(status == 'failed'),
             device1 = unique(device)[1], device2 = unique(device)[2],
@@ -59,13 +70,18 @@ actOnFailed.All <- actOnFailed %>%
 
 actOnFailed.dry <- actOnFailed %>%
   filter(eqa == 'Instand 800' | eqa == 'RfB GL') %>%
-  filter(act != 'leftEQA') %>% ungroup() %>% as.data.frame()
+  filter(act != 'leftEQA') %>% 
+  ungroup() %>% 
+  as.data.frame()
 
 nextYearDevs <- adply(actOnFailed.dry, 1, function(x){
   failedDev <- unique(c(x$f.device1, x$f.device2, x$f.device3, x$f.device4))
   newyearDev <- unique(c(x$device1, x$device2, x$device3, x$device4))
   failedDev <- failedDev[!is.na(failedDev) & failedDev != '']
-  newyearDev <- newyearDev[!is.na(newyearDev) & newyearDev != '']
+  newyearDev <- newyearDev[!is.na(newyearDev) &
+                             newyearDev != '' & 
+                             newyearDev != "Anderes Gerät" & 
+                             newyearDev != "others"]
   
   newDev.notFailed <- newyearDev[!newyearDev %in% failedDev]
   newDev.Failed <- newyearDev[newyearDev %in% failedDev]
@@ -98,44 +114,58 @@ resNextYear <- inner_join(nextYearDevs, eqaAll,
   commonOrder()
 
 pVals <- resNextYear %>%
+  filter(device != "Anderes Gerät") %>%
   group_by(eqa) %>%
   summarise(p = 
               wilcox.test(absDiff[type == 'f'], 
-                          absDiff[type != 'f'])[['p.value']])
+                          absDiff[type != 'f'])[['p.value']]) %>%
+  mutate(label = star(p))
 
-wilcox.test(resNextYear %>% filter(eqa == 'RfB GL' & type == 'f') %>% 
-              .$absDiff,
-            resNextYear %>% filter(eqa == 'RfB GL' & type != 'f') %>% 
-              .$absDiff)
+print(pVals)
 
 countsNextYear <- resNextYear %>%
   group_by(eqa, type) %>%
   summarise(n = n()) %>%
   ungroup()
 
-ggplot(resNextYear, aes(x=type, y=absDiff)) +
-  geom_boxplot(outlier.shape = NA) +
-  scale_y_continuous(limits = c(0, .5), labels=percent) +
-  scale_x_discrete(labels = c('n' = 'new device', 'f' = 'old device')) +
-  xlab('')+
-  ylab('deviation from assined value') +
-  facet_grid(~eqa) +
-  theme_pub(base_size = 10) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+print(countsNextYear)
 
-ggpub("pathDetails", width = 65, height = 120)
+resNextYearForGraph <- resNextYear %>%
+  filter(abs(relDiff) < .45) %>%
+  group_by(eqa, type) %>%
+  mutate(class = cut(relDiff, breaks=seq(-.45, .45, .01), 
+                     labels = seq(-.45+.01, .45, .01)-(.01/2)), n= n()) %>%
+  group_by(eqa, type, class) %>%
+  summarise(p = n()/n[1]) %>%
+  ungroup() %>%
+  mutate(class = as.numeric(as.character(class))) %>%
+  commonOrder()
+
+ggplot() +
+  geom_col(data = resNextYearForGraph, aes(x=class, y = p, fill=type))+
+  scale_x_continuous(limits = c(-.45,.45), labels=percent) +
+  theme_pub(base_size = 10) +
+  scale_fill_manual(labels=c('n' = 'new device', 'f' = 'old device'),
+                    values = c('n' = '#e34234', 'f' = '#87CEEB')) +
+  scale_y_continuous(labels=percent) +
+  xlab("relative deviation from assigned value") +
+  ylab("frequency") +
+  theme(legend.title=element_blank()) +
+  facet_grid(eqa~.)
+
+ggpub("pathDetails", width = 110, height = 120)
 
 
 ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
   geom_col()+
-  scale_y_continuous(labels=percent)+
+  scale_y_continuous(labels=percent, limits = c(0, .6))+
   scale_x_discrete(labels = c(
     'cont.Good' = 'improved',
     'cont.Fail'= 'failed',
     'leftEQA' = "left\nEQA"
   )) +
-  facet_grid(.~eqa)+
-  xlab("performance after a year with 'failed' EQA") +
+  facet_grid(eqa~.)+
+  xlab("performance after a year\n with 'failed' EQA") +
   ylab('percentage of participants') +  
   geom_text(
     aes(label = n, y = p + 0.02),
@@ -144,7 +174,7 @@ ggplot(actOnFailed.All, aes(x=act, y=p, label = n)) +
   theme_pub(base_size = 10) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggpub("pathAll", width = 110, height = 120)
+ggpub("pathAll", width = 65, height = 120)
 
 
 ## path for passing ----

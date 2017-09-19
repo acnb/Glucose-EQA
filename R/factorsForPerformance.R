@@ -111,16 +111,15 @@ eqasByYearMulti <- eqaAllMulti %>%
 byMulti <- eqaAllMulti %>%
   group_by(pid, eqa) %>%
   mutate(seq = dense_rank(year*100+round)) %>% 
-  mutate(seq = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
-  mutate(hasFullSeq = (1 %in% seq)) %>%
-  mutate(seq = ifelse(hasFullSeq | seq > 10, seq, NA)) %>%
-  mutate(seqGrp = case_when(is.na(seq) ~ NA_character_,
+  mutate(seqForGrp = ifelse(year == 2012 & seq == 1 & round < 3, NA, seq)) %>%
+  mutate(hasFullSeq = (1 %in% seqForGrp)) %>%
+  mutate(seqForGrp = ifelse(hasFullSeq | seqForGrp > 10, seqForGrp, NA)) %>%
+  mutate(seqGrp = case_when(is.na(seqForGrp) ~ NA_character_,
                             seq == 1 ~ 'new', 
                             seq <= 10 ~ 'intermediate',
                             TRUE ~ 'experienced' )) %>%
-  mutate(seqGrp = factor(seqGrp)) %>%
-  mutate(seq = ifelse(hasFullSeq, seq, NA)) %>%
   ungroup() %>%
+  mutate(seqGrp = factor(seqGrp)) %>%
   left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
   filter(as.character(extraEqa) != as.character(eqa)) %>%
   left_join(prevMulti , by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%

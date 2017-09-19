@@ -31,14 +31,10 @@ biasBudgetSEG.CV <- function(cv, sd=3){
   budget <- borders %>%
     mutate(diffUpper = upper - (ref+ref*cv*sd),
            diffLower = lower - (ref-ref*cv*sd)) %>%
-    summarise(budgetLowerAbs = max(diffLower), 
-              refLowerAbs = ref[which.max(diffLower)],
-              budgetUpperAbs = min(diffUpper), 
-              refUpperAbs = ref[which.min(diffUpper)],
-              budgetLowerRel = max(diffLower/(0:500)), 
-              refLowerRel = ref[which.max(diffLower/(0:500))],
-              budgetUpperRel = min(diffUpper/(0:500)), 
-              refUpperRel = ref[which.min(diffUpper/(0:500))])
+    summarise(budgetLower = max(diffLower), 
+              refLower = ref[which.max(diffLower)],
+              budgetUpper = min(diffUpper), 
+              refUpper = ref[which.min(diffUpper)])
 
   budget
 } 
@@ -74,7 +70,7 @@ budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
                           biasBudgetSEG.CV(x[1, 'mean.cv.w'])
                         })
 
-rtf<-RTF(here('tab', 'budgetByDevice.CV.csv'))
+rtf<-RTF(here('tab', 'budgetByDevice.CV.rtf'))
 addTable(rtf,budgetByDevice.CV)
 done(rtf)
 
@@ -84,21 +80,30 @@ budgetByDevice.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
                              biasBudgetSEG.CharFunc(x[1, 'a'], x[1, 'b'])
                            })
 
-rtf<-RTF(here('tab', 'budgetByDevice.CharFunc.csv'))
+rtf<-RTF(here('tab', 'budgetByDevice.CharFunc.rtf'))
 addTable(rtf,budgetByDevice.CharFunc)
 done(rtf)
 
+budgetByDevice.graph <- budgetByDevice.CV %>%
+  mutate(math = 'CV') %>%
+  rbind(budgetByDevice.CharFunc %>% 
+          mutate(math = "characteristic\nfunction")) %>%
+  filter(charDev != 'others') %>%
+  mutate(charDev = str_replace(charDev, "\n", " ")) %>%
+  mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
 
-ggplot(budgetByDevice.CV %>% filter(charDev != 'others'),
-       aes(x=charDev, ymin=budgetLowerAbs, ymax=budgetUpperAbs, color=eqa))+
-  geom_errorbar()+
+ggplot(budgetByDevice.graph ,
+       aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa))+
+  geom_hline(yintercept = 0) +
+  geom_errorbar(position = position_dodge())+
   theme_pub() +
-  ylab('allowed bias (mg/dl)') +
+  ylab('allowed bias (mg/dl) Surveillance Error Grid') +
   xlab('device') +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-        legend.title = element_blank())
+  coord_flip() +
+  facet_grid(.~math) +
+  theme(legend.title = element_blank(), axis.text.y = element_text(size=8))
 
-ggpub('allowedBias')
+ggpub('allowedBias', height=230)
 
 
 ## bias budget klee simulation ----
@@ -117,10 +122,10 @@ biasBudgetSim.CV <- function(cv, sd=3){
   budget <- borders %>%
     mutate(diffUpper = upper - (ref+ref*cv*sd),
            diffLower = lower - (ref-ref*cv*sd)) %>%
-    summarise(budgetLowerAbs = max(diffLower), 
-              refLowerAbs = ref[which.max(diffLower)],
-              budgetUpperAbs = min(diffUpper), 
-              refUpperAbs = ref[which.min(diffUpper)])
+    summarise(budgetLower = max(diffLower), 
+              refLower = ref[which.max(diffLower)],
+              budgetUpper = min(diffUpper), 
+              refUpper = ref[which.min(diffUpper)])
   
   budget
 }
@@ -155,7 +160,7 @@ budgetByDevice.Sim.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
                            })
 
 
-rtf<-RTF(here('tab', 'budgetByDevice.Sim.CV.csv'))
+rtf<-RTF(here('tab', 'budgetByDevice.Sim.CV.rtf'))
 addTable(rtf,budgetByDevice.Sim.CV)
 done(rtf)
 
@@ -165,10 +170,51 @@ budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
                                    biasBudgetSim.CharFunc(x[1, 'a'], x[1, 'b'])
                                  })
 
-rtf<-RTF(here('tab', 'budgetByDevice.CharFunc.csv'))
+rtf<-RTF(here('tab', 'budgetByDevice.Sim.CharFunc.rtf'))
 addTable(rtf,budgetByDevice.CharFunc)
 done(rtf)
 
+
+budgetByDevice.Sim.graph <- budgetByDevice.Sim.CV %>%
+  mutate(math = 'CV') %>%
+  rbind(budgetByDevice.Sim.CharFunc %>% 
+          mutate(math = "characteristic\nfunction")) %>%
+  filter(charDev != 'others') %>%
+  mutate(charDev = str_replace(charDev, "\n", " ")) %>%
+  mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
+
+ggplot(budgetByDevice.Sim.graph ,
+       aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa))+
+  geom_hline(yintercept = 0) +
+  geom_errorbar(position = position_dodge())+
+  theme_pub() +
+  facet_grid(.~math) +
+  ylab('allowed bias (mg/dl) TGC-Simulation') +
+  xlab('device') +
+  coord_flip() +
+  theme(legend.title = element_blank(), axis.text.y = element_text(size=8))
+
+ggpub('allowedBiasSim', height=230)
+
+## summary stats
+
+budgetAll <- rbind(
+  budgetByDevice.CV %>%  mutate(math = 'CV', risk = 'SEG'),
+  budgetByDevice.CharFunc %>%  mutate(math = 'charFunc', risk = 'SEG'),
+  budgetByDevice.Sim.CV %>%  mutate(math = 'CV', risk = 'sim'),
+  budgetByDevice.Sim.CharFunc %>% mutate(math = "charFunc", risk = 'sim')
+)
+
+
+statsbudget <- budgetAll %>%
+  mutate(budgetLower = budgetLower*-1) %>%
+  gather(key = 'type', value = 'budget', budgetLower, budgetUpper) %>%
+  group_by(eqa, risk) %>%
+  summarise(min = min(budget),
+            p25 = quantile(budget, names = FALSE, probs=.25),
+            med = median(budget),
+            p75 = quantile(budget, names = FALSE, probs=.75),
+            max = max(budget))
 
 ## bias budget explanation graph ----
 
