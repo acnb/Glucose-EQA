@@ -59,6 +59,20 @@ outcomeStats <- devChanges %>%
   ungroup() %>%
   commonOrder()
 
+outcomeFailedAgain <- devChanges %>%
+  filter(pHasFailed) %>%
+  filter(outcome != 'left') %>%
+  select(eqa, pid, year, outcome) %>%
+  unique() %>%
+  group_by(eqa, outcome) %>%
+  summarise(n = n()) %>%
+  group_by(eqa) %>%
+  mutate(p = n/sum(n)) %>%
+  ungroup() %>%
+  commonOrder()
+
+print(outcomeFailedAgain)
+
 
 ggplot(outcomeStats, aes(x=act, y=p, label = n, fill =  pHasFailed)) +
   geom_col(position = 'dodge')+
