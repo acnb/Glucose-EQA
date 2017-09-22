@@ -473,6 +473,8 @@ multivariatePlot <- function(res){
     mutate(var = fct_reorder(var, orderForVar)) %>%
     commonOrder()
   
+  maxLim <- ceiling(max(oddsConf$X97.5..)/10)*10
+  
   ggplot()+
     geom_point(data = oddsConf, aes(x=var, y=odds))+
     geom_errorbar(data = oddsConf, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
@@ -480,7 +482,7 @@ multivariatePlot <- function(res){
     xlab('') +
     ylab('multivariate odds ratios') +
     geom_hline(yintercept = 1) +
-    scale_y_continuous(trans=log10_trans(), limits = c(.1, 10)) +
+    scale_y_continuous(trans=log10_trans(), limits = c(.1, maxLim)) +
     scale_x_discrete(labels = oddsLabels) +
     theme_pub()
   
