@@ -46,7 +46,6 @@ descriptionSamples <- eqaAll %>%
             roundsPerYear = max(round),
             nDevices = as.character(n_distinct(device))) %>%
   ungroup() %>%
-  mutate(nDevices = ifelse(eqa == 'Instand 100', '-', nDevices)) %>%
   commonOrder() %>%
   arrange(eqa) 
   
