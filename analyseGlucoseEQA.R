@@ -11,6 +11,8 @@ library(boot)
 library(forcats)
 library(rtf)
 
+mmolConvFactor <- 18.01806
+
 load(here::here('data', 'eqaAll.RData'))
 
 load(here::here('data', 'sharedDevs.RData'))

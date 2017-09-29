@@ -11,8 +11,7 @@ sFromAWrapper <- function(d, i){
 }
 
 getStErrorForS <- function(x){
-  b <- boot(x, sFromAWrapper, R= 2000)
-  sd(b$t, na.rm=T)
+  huberM(x, se= TRUE)$SE
 }
 
 getMaxDiff <- function(x, idx){
