@@ -7,6 +7,8 @@ colors.status <- c('failed' = "#d7191c",
                    'acceptable' = '#2b83ba',
                    'good' =   "#abdda4")
 
+typeColors <- c('POCT' = 'white', 'CL' = '#e9e9e9')
+
 commonOrder <- function(d){
   orders <- list("eqa" = c("Instand 100", "RfB KS", "Instand 800", "RfB GL"),
                  "seqGrp" = c("new", "intermediate", "experienced"),

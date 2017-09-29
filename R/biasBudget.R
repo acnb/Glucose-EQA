@@ -65,7 +65,7 @@ biasBudgetSEG.CharFunc <- function(a, b, sd=3){
 } 
 
 
-budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
+budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
                         function(x){
                           biasBudgetSEG.CV(x[1, 'mean.cv.w'])
                         })
@@ -75,7 +75,7 @@ addTable(rtf,budgetByDevice.CV)
 done(rtf)
 
 
-budgetByDevice.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
+budgetByDevice.CharFunc <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
                            function(x){
                              biasBudgetSEG.CharFunc(x[1, 'a'], x[1, 'b'])
                            })
@@ -92,16 +92,25 @@ budgetByDevice.graph <- budgetByDevice.CV %>%
   mutate(charDev = str_replace(charDev, "\n", " ")) %>%
   mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
 
-ggplot(budgetByDevice.graph ,
-       aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa))+
-  geom_hline(yintercept = 0) +
-  geom_errorbar(position = position_dodge())+
+ggplot()+
+  geom_rect(data = budgetByDevice.graph, aes(fill = type), 
+            xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_errorbar(data = budgetByDevice.graph ,
+                aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa),
+                  position = position_dodge())+
+  scale_y_continuous(sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "allowed bias (mmol/l)"), 
+                     name='allowed bias (mg/dl)') +
+  scale_fill_manual(values = typeColors, guide = "none") + 
   theme_pub() +
-  ylab('allowed bias (mg/dl) Surveillance Error Grid') +
-  xlab('device') +
   coord_flip() +
-  facet_grid(.~math) +
-  theme(legend.title = element_blank(), axis.text.y = element_text(size=8))
+  xlab('') +
+  facet_grid(type~math, space = 'free_y', scales = 'free_y') +
+  theme(legend.title = element_blank(), 
+        axis.text.y = element_text(size=8),
+        strip.text.y = element_blank())
 
 ggpub('allowedBias', height=230)
 
@@ -154,7 +163,7 @@ biasBudgetSim.CharFunc <- function(a, b, sd=3){
 } 
 
 
-budgetByDevice.Sim.CV <- ddply(cv.by.device, c('charDev', 'eqa'),
+budgetByDevice.Sim.CV <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
                            function(x){
                              biasBudgetSim.CV(x[1, 'mean.cv.w'])
                            })
@@ -165,7 +174,7 @@ addTable(rtf,budgetByDevice.Sim.CV)
 done(rtf)
 
 
-budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('charDev', 'eqa'),
+budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
                                  function(x){
                                    biasBudgetSim.CharFunc(x[1, 'a'], x[1, 'b'])
                                  })

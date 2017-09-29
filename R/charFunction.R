@@ -1,34 +1,37 @@
 params.single.devices <- eqaAll %>%
-  filter(eqa != 'Instand 100') %>%
+  filter(!is.na(rmv)) %>%
   filter(!str_detect(device, "Andere")) %>%
   filter(!str_detect(device, "andere")) %>%
-  mutate(charDev = ifelse(is.na(sharedDevice) | sharedDevice == 'others', 
+  mutate(charDev = ifelse(is.na(sharedDevice), 
                           as.character(device),
                           as.character(sharedDevice))) %>%
+  filter(charDev != 'Other devices') %>% 
   filter(abs(relDiff) < .45) %>%
-  filter(device != 'others') %>%
-  group_by(eqa, device) %>%
+  mutate(charDev = if_else(charDev == 'ThermoFisher/Microgen./Konelab',
+                           'ThermoFisher/ Microgen./Konelab', charDev)) %>%
+  group_by(eqa, charDev) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
   ungroup() %>%
   filter(n > 100) %>%
   filter(nlabs > 10) %>%
-  group_by(eqa, charDev, rmv) %>%
+  group_by(eqa, charDev, rmv, type) %>%
   filter(n() > 7) %>%
   summarise(sd = getSfromAlgA(value), 
-            sdE = getStErrorForS(value),
+            sdE = max(.Machine$double.eps, getStErrorForS(value)),
             targetAlgA = getMufromAlgA(value), n=n()) %>%
   mutate(cv = sd/targetAlgA) %>%
   group_by(eqa, charDev) %>%
+  filter(n_distinct(rmv) >= 5) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
+  filter(sum(n) > 100) %>%
   mutate(cv = sd/targetAlgA) %>%
-  rowwise() %>%
-  mutate(charDev = replaceCLNames(charDev)) %>%
   ungroup() %>%
-  mutate(type = ifelse(eqa == "RfB KS", 'central lab', 'POCT'))
+  mutate(eqa = fct_collapse(eqa, 'RfB' = c('POCT-RfB', 'CL-RfB'),
+                            'Instand' = c('POCT-Instand', 'CL-Instand')))
 
 
-param.char.func <- ddply(params.single.devices, c('eqa', 'charDev'), 
+ param.char.func <- ddply(params.single.devices, c('type', 'eqa', 'charDev'), 
                              function(x){
   model <- NULL
   try({
@@ -47,10 +50,6 @@ param.char.func <- ddply(params.single.devices, c('eqa', 'charDev'),
   }
 })
 
-param.char.func <- param.char.func %>%
-  filter(n > 100) %>%
-  filter(!is.na(a)) 
-
 params.single.devices <- params.single.devices %>%
   join(param.char.func %>% select(eqa, charDev), type = "inner") %>%
   commonOrder() %>%
@@ -61,46 +60,52 @@ grid <- seq(from=min(params.single.devices$targetAlgA),
             to=max(params.single.devices$targetAlgA), by=.5)
 
 lines.char.func <- ddply(param.char.func, 
-                         c('eqa', 'charDev'), 
+                         c('eqa', 'charDev', 'type'), 
                          function(x){
                            data.frame(x=grid, 
                                       y= ((x[['a']]^2+(x[['b']]*grid)^2)^.5)/grid)
                            })
+
 lines.char.func <- lines.char.func %>%
-  mutate(type = ifelse(eqa == "RfB KS", 'central lab', 'POCT')) %>%
   commonOrder() %>%
   mutate(charDev = fct_reorder(charDev, as.numeric(type)))
 
 
-eqaColors = c('Instand 800' = '#f5961e',
-              'RfB GL' = '#4ba1d1',
-              'RfB KS' = '#000000')
 
-typeColors <- c('POCT' = 'white', 'central lab' = '#e9e9e9')
+eqaColors = c('Instand' = '#f5961e',
+              'RfB' = '#4ba1d1')
 
 ggplot() +
   geom_rect(data = params.single.devices, aes(fill = type),
-              xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
+               xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
   geom_point(data = params.single.devices, 
              aes(x=targetAlgA, y=cv, alpha=w, color=eqa)) +
   geom_line(data=lines.char.func, aes(x=x, y=y, color=eqa)) +
   facet_wrap(~charDev, labeller = label_wrap_gen(width=19)) +
   theme_pub(base_size = 10) + 
   scale_alpha(guide = "none") +
-  scale_color_manual(values = eqaColors) +
+  scale_color_manual(values = eqaColors, 
+                     guide = guide_legend(override.aes = 
+                                            list(alpha = 1,
+                                                 fill = NA,
+                                                 shape = 15,
+                                                 linetype = 0))) +
   scale_fill_manual(values = typeColors, guide = "none") + 
+  scale_x_continuous(sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "assigned value (mmol/l)"), 
+                     name='assigned value (mg/dl)') +
   theme(strip.text.x = element_text(size = 5), 
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 45)) +
   ggtitle('fitted characteristic function') +
-  xlab('assigned value (mg/dl)') +
-  ylab('coefficient of variation')
+  ylab('relative imprecision')
 
 ggpub('charFunc', height = 240)
 
 
 resids <- ddply(params.single.devices, 
-                c('eqa', 'charDev'), 
+                c('eqa', 'charDev', 'type'), 
                 function(x){
   model <- NULL
   try({
@@ -115,55 +120,61 @@ resids <- ddply(params.single.devices,
 })
 
 resids <- resids %>%
-  mutate(type = ifelse(eqa == "RfB KS", 'central lab', 'POCT')) %>%
-  commonOrder() %>%
   mutate(charDev = fct_reorder(charDev, as.numeric(type)))
 
 ggplot() +
   geom_rect(data = resids, aes(fill = type), 
             xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
   geom_point(data = resids, aes(x=x, y=r, alpha=w, color=eqa))+
-  geom_smooth(data = resids, aes(x=x, y=r, weight=w, color=eqa))+
+  geom_smooth(data = resids, aes(x=x, y=r, weight=w, color=eqa), method = 'gam')+
   facet_wrap(~charDev, labeller = label_wrap_gen(width=19)) +
   theme_pub(base_size = 10) + 
   scale_alpha(guide = "none") +
   scale_fill_manual(values = typeColors, guide = "none") + 
-  scale_color_manual(values = eqaColors) +
+  scale_color_manual(values = eqaColors, 
+                     guide = guide_legend(override.aes = 
+                                            list(alpha = 1,
+                                                 fill = NA,
+                                                 shape = 15,
+                                                 linetype = 0))) +
+  scale_x_continuous(sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "assigned value (mmol/l)"), 
+                     name='assigned value (mg/dl)') +
+  scale_y_continuous(sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "residuals (mmol/l)"), 
+                     name='residuals (mg/dl)') +
   theme(strip.text.x = element_text(size = 5), 
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 45)) +
-  xlab('assigned value (mg/dl)') +
-  ggtitle('residuals of characteristic function fit') +
-  ylab('residuals (mg/dl)')
+  ggtitle('residuals of characteristic function fit')
 
 ggpub('residsCharFunc', height = 240)
 
 ## table ----
 
 cv.by.device <-  params.single.devices %>%
-  group_by(eqa, charDev) %>%
+  group_by(type, eqa, charDev) %>%
   summarise(mean.cv.w = weighted.mean(cv, w), mean.cv = mean(cv)) %>%
   ungroup() %>%
-  join(param.char.func, by=c('eqa' = 'eqa', 
-                                   'charDev' = 'charDev')) %>%
-  select(charDev, eqa, mean.cv.w, mean.cv, a, b) %>%
+  join(param.char.func, by=c('type' = 'type',
+                             'eqa' = 'eqa', 
+                             'charDev' = 'charDev')) %>%
+  select(charDev, type, eqa, mean.cv.w, mean.cv, a, b) %>%
   mutate_at(vars(mean.cv.w, mean.cv, a, b), round, digits=3)
 
 cv.by.device.table <- cv.by.device %>%
-  mutate(mean = paste0(mean.cv.w, ' (', eqa, ')'),
-         alpha = paste0(a, ' (', eqa, ')'),
-         beta = paste0(b, ' (', eqa, ')'),
-         device = charDev) %>%
-  group_by(device) %>%
+  group_by(charDev, type) %>%
   summarise(
-    type = ifelse(eqa[1] == 'RfB KS', 'central lab', 'POCT'),
-    mean = paste0(mean, collapse = ", \n"),
-    alpha = paste0(alpha, collapse = ", \n"),
-    beta = paste0(beta, collapse = ", \n")) %>%
+    eqa = paste0(eqa, collapse = "\n"),
+    mean = paste0(mean.cv.w, collapse = "\n"),
+    alpha = paste0(a, collapse = "\n"),
+    beta = paste0(b, collapse = "\n")
+    ) %>%
   ungroup() %>%
-  filter(device != 'others') %>%
-  arrange(type, device) %>%
-  mutate(device = str_replace(device, '\n', ''))
+  transmute(device = charDev, type=type, eqa = eqa, 
+            mean=mean, alpha=alpha, beta=beta)
 
 rtf<-RTF(here('tab', 'precision.rtf'))
 addTable(rtf,cv.by.device.table)
