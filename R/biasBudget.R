@@ -270,28 +270,47 @@ budgetNeg <- data.frame(
 )
 
 ggplot()+
-  geom_point(data= riskpair, aes(x=RefVal, y=MeasVal, color = RiskFactor*2)) +
+  geom_point(data = data.frame(x=0, y=0, f=c(0:4)),
+             aes(x=x,y=y, fill=f))+
+  geom_point(data= riskpair, aes(x=RefVal, y=MeasVal, color = RiskFactor)) +
   geom_line(data = borders, aes(x=ref, y=lower), color='black') + 
   geom_line(data = borders, aes(x=ref, y=upper), color='black') + 
+  scale_fill_gradientn(
+    values =scales::rescale(c(0, 1, 2, 3, 3.75)),
+    limits=c(0,4),
+    colours = c("green", "yellow", "orange", "red", 'brown'),
+    guide = guide_colorbar(ticks = FALSE, barheight = unit(100, 'mm')),
+    breaks =  c(0.25, 1, 2, 3, 3.75),
+    labels = c('none', 'slight', 'moderate', 'high', 'extreme'),
+    name = 'risk level'
+  ) +
   scale_color_gradientn(
     colours = c("brown", "red", "orange", "yellow", "green",
                 "yellow", "orange", "red", 'brown'), 
-    values = scales::rescale(c(-3.5, -2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5))
+    guide = 'none',
+    limits = c(-4,4), 
+    values = scales::rescale(c(-3.75, -3, -2, -1, 0, 1, 2, 3, 3.75))
     ) +
   geom_ribbon(data=data.frame(x=0:300),
-              aes(x = x, 
-                  ymin=pmax(0, x-charFunc(x)*3), 
-                  ymax=pmin(300, x+charFunc(x)*3)), 
+              aes(x = x,
+                  ymin=pmax(0, x-charFunc(x)*3),
+                  ymax=pmin(300, x+charFunc(x)*3)),
               fill = "grey50", color='grey50', alpha=.5) +
-  geom_line(data=budgetPos, aes(x=x, y=y), 
-            color="blue", size = 1.2) + 
-  geom_line(data=budgetNeg, aes(x=x, y=y), 
-            color="blue", size = 1.2) + 
-  scale_x_continuous(limits = c(0, 300)) +
-  scale_y_continuous(limits = c(0, 300)) +
-  xlab('true value (mg/dl)') + 
-  ylab('measured value (mg/dl)')+
+  geom_line(data=budgetPos, aes(x=x, y=y),
+            color="blue", size = 1.2) +
+  geom_line(data=budgetNeg, aes(x=x, y=y),
+            color="blue", size = 1.2) +
+  scale_y_continuous(limits = c(0, 300), sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "measured blood glucose (mmol/l)"), 
+                     name='measured blood glucose (mg/dl)') +
+  scale_x_continuous(limits = c(0, 300), sec.axis = 
+                       sec_axis(~./mmolConvFactor, 
+                                name = "reference blood glucose (mmol/l)"), 
+                     name='reference blood glucose (mg/dl)') +
   theme_pub() +
-  theme(legend.position = "none")
+  coord_equal() +
+  theme(legend.position = 'right',
+        legend.direction = 'vertical')
   
 ggpub('biasBudget')
