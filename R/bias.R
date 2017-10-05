@@ -1,21 +1,27 @@
 bias <- eqaAll %>%
-  dplyr::filter(eqa != 'POCT-RfB') %>% 
-  dplyr::filter(!str_detect(device, "Andere")) %>%
-  dplyr::filter(!str_detect(device, "andere")) %>%
+  filter(eqa != 'POCT-RfB') %>%
+  filter(!is.na(rmv)) %>%
+  filter(rmv == target) %>%
+  filter(!str_detect(device, "Andere")) %>%
+  filter(!str_detect(device, "andere")) %>%
   mutate(charDev = ifelse(is.na(sharedDevice), 
                           as.character(device),
                           as.character(sharedDevice))) %>%
   filter(charDev != 'Other devices') %>% 
   filter(abs(relDiff) < .45) %>%
-  dplyr::filter(charDev != 'others') %>%
-  dplyr::filter(target == rmv) %>%
-  dplyr::filter(abs(relDiff) < .45) %>%
-  dplyr::group_by(type,eqa, charDev, year, round, sample) %>%
-  dplyr::filter(n() > 7) %>%
+  mutate(charDev = if_else(charDev == 'ThermoFisher/Microgen./Konelab',
+                           'ThermoFisher/ Microgen./Konelab', charDev)) %>%
+  group_by(eqa, charDev) %>%
+  mutate(n = n(), nlabs = n_distinct(pid)) %>%
+  ungroup() %>%
+  filter(n > 100) %>%
+  filter(nlabs > 10) %>%
+  group_by(eqa, charDev, rmv, type) %>%
+  filter(n() > 7) %>%
   dplyr::summarise(n = n(), 
-          rmv = rmv[1], 
           stableMu = getMufromAlgA(value)
           ) %>%
+  ungroup() %>%
   dplyr::mutate(bias.abs = rmv - stableMu, bias.rel = (rmv - stableMu)/rmv)
 
 medBias <- bias %>%
