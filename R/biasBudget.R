@@ -65,6 +65,30 @@ biasBudgetSEG.CharFunc <- function(a, b, sd=3){
 } 
 
 
+plotAllowedBias <- function(data, title){
+  ggplot()+
+    geom_rect(data = data, aes(fill = type), 
+              xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
+    geom_hline(yintercept = 0, linetype = 2) +
+    geom_errorbar(data = data ,
+                  aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa),
+                  position = position_dodge())+
+    scale_y_continuous(sec.axis = 
+                         sec_axis(~./mmolConvFactor, 
+                                  name = "allowed bias (mmol/l)"), 
+                       name='allowed bias (mg/dl)') +
+    scale_fill_manual(values = typeColors, guide = "none") + 
+    theme_pub() +
+    coord_flip() +
+    xlab('') +
+    ggtitle(title) +
+    facet_grid(type~math, space = 'free_y', scales = 'free_y') +
+    theme(legend.title = element_blank(), 
+          axis.text.y = element_text(size=8),
+          strip.text.y = element_blank())
+}
+
+
 budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
                         function(x){
                           biasBudgetSEG.CV(x[1, 'mean.cv.w'])
@@ -92,27 +116,10 @@ budgetByDevice.graph <- budgetByDevice.CV %>%
   mutate(charDev = str_replace(charDev, "\n", " ")) %>%
   mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
 
-ggplot()+
-  geom_rect(data = budgetByDevice.graph, aes(fill = type), 
-            xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
-  geom_hline(yintercept = 0, linetype = 2) +
-  geom_errorbar(data = budgetByDevice.graph ,
-                aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa),
-                  position = position_dodge())+
-  scale_y_continuous(sec.axis = 
-                       sec_axis(~./mmolConvFactor, 
-                                name = "allowed bias (mmol/l)"), 
-                     name='allowed bias (mg/dl)') +
-  scale_fill_manual(values = typeColors, guide = "none") + 
-  theme_pub() +
-  coord_flip() +
-  xlab('') +
-  facet_grid(type~math, space = 'free_y', scales = 'free_y') +
-  theme(legend.title = element_blank(), 
-        axis.text.y = element_text(size=8),
-        strip.text.y = element_blank())
 
-ggpub('allowedBias', height=230)
+plotAllowedBias(budgetByDevice.graph, 'bias budget (Surveillance Error Grid)')
+
+ggpub('allowedBiasSEG', height=230)
 
 
 ## bias budget klee simulation ----
@@ -192,16 +199,9 @@ budgetByDevice.Sim.graph <- budgetByDevice.Sim.CV %>%
   mutate(charDev = str_replace(charDev, "\n", " ")) %>%
   mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
 
-ggplot(budgetByDevice.Sim.graph ,
-       aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa))+
-  geom_hline(yintercept = 0) +
-  geom_errorbar(position = position_dodge())+
-  theme_pub() +
-  facet_grid(.~math) +
-  ylab('allowed bias (mg/dl) TGC-Simulation') +
-  xlab('device') +
-  coord_flip() +
-  theme(legend.title = element_blank(), axis.text.y = element_text(size=8))
+
+
+plotAllowedBias(budgetByDevice.Sim.graph, 'bias budget (TGC-Simulation)')
 
 ggpub('allowedBiasSim', height=230)
 
@@ -217,8 +217,8 @@ budgetAll <- rbind(
 
 statsbudget <- budgetAll %>%
   mutate(budgetLower = budgetLower*-1) %>%
-  gather(key = 'type', value = 'budget', budgetLower, budgetUpper) %>%
-  group_by(eqa, risk) %>%
+  gather(key = 'direction', value = 'budget', budgetLower, budgetUpper) %>%
+  group_by(type) %>%
   summarise(min = min(budget),
             p25 = quantile(budget, names = FALSE, probs=.25),
             med = median(budget),
@@ -246,7 +246,7 @@ borders <- as.data.frame(borders) %>%
 
 meanCharFunc <- cv.by.device %>%
   filter(charDev != "others") %>%
-  filter(eqa == 'Instand 800' | eqa == "RfB GL") %>%
+  filter(type == 'CL') %>%
   summarise(a = median(a), b=median(b)) %>%
   as.list()
 

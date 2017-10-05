@@ -2,6 +2,9 @@
 
 library(mice)
 
+strWrapper <- label_wrap_gen(20)
+
+
 oddsLabels <- c('seq' = 'number of previous participations',
                 
                 'status.prevgood' = '"good" last result', 
@@ -235,7 +238,7 @@ percPlot <- function(var, xlabel){
 }
 
 
-percPlot('seqGrp', 'number of previous EQAs')
+percPlot('seqGrp', 'experience through previous EQAs')
 ggpub('bySeqEQA', height= 150)
 
 percPlot('extraEqaSingle', 'additional participation in other EQAs')
@@ -262,9 +265,14 @@ for(e in unique(byDeviceGraph$eqa)){
     group_by(sharedDevice) %>%
     mutate(toOrder = max(c(p[status == "failed"], 0))) %>%
     ungroup() %>%
+    mutate(sharedDevice = unlist(strWrapper(as.character(sharedDevice)))) %>%
+    mutate(sharedDevice = factor(sharedDevice)) %>%
     mutate(sharedDevice = fct_reorder(sharedDevice, toOrder))
   
-  grN <- byDeviceGraphN %>% filter(eqa == e)
+  grN <- byDeviceGraphN %>% 
+    filter(eqa == e) %>%
+    mutate(sharedDevice = unlist(strWrapper(as.character(sharedDevice)))) %>%
+    mutate(sharedDevice = factor(sharedDevice))
   
   devPlot <- ggplot() + 
     geom_rect(data = grData, aes(fill = type),
@@ -273,7 +281,7 @@ for(e in unique(byDeviceGraph$eqa)){
              position = position_stack(reverse = TRUE)) +
     geom_text(data = grN, aes(x=sharedDevice, y=1.1, label=n),size=3)+ 
     scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
-    scale_fill_manual(breaks= names(colors.status), 
+    scale_fill_manual(breaks= names(colors.status),
                       values=c(colors.status, typeColors)) +
     xlab(paste0('devices in ', e)) +
     ylab('percentage of individual EQA participations') +
@@ -538,12 +546,15 @@ multiOdds <- function(data, good = TRUE){
 multivariatePlot <- function(oddsConf){
   maxLim <- ceiling(max(oddsConf$X97.5..)/10)*10
   
+  range <- log(maxLim)-log(0.1)
+  textPos <- exp((range*0.1)+log(0.1))
+  
   ggplot()+
     geom_rect(data = oddsConf, aes(fill=type), xmin = -Inf, xmax = Inf,
               ymin = -Inf,ymax = Inf) +
     geom_point(data = oddsConf, aes(x=var, y=odds))+
     geom_errorbar(data = oddsConf, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
-    geom_text(data = oddsConf, aes(x=var, y= .15, label=n), hjust=1) +
+    geom_text(data = oddsConf, aes(x=var, y= textPos, label=n), hjust=1) +
     coord_flip() +
     xlab('') +
     ylab('multivariate odds ratios') +
@@ -725,7 +736,7 @@ plotMultiGoodPOCT +
   geom_point(data = oddsMultiGoodPOCTImp, 
              aes(x=var, y=odds), colour='red', shape=4) +
   geom_text(data = missingCountsPOCT,
-            aes(x=var, y= 0.3, label=paste0('(+',n,')')), 
+            aes(x=var, y= 0.35, label=paste0('(+',n,')')), 
             colour = 'red', hjust=1)
  
 ggpub('oddsMultiGoodPOCTImp', height= 120)
@@ -736,7 +747,7 @@ plotMultiNotFailedPOCT +
   geom_point(data = oddsMultiNotFailedPOCTImp, 
              aes(x=var, y=odds), colour='red', shape=4) +
   geom_text(data = missingCountsPOCT,
-            aes(x=var, y= 0.3, label=paste0('(+',n,')')), 
+            aes(x=var, y= 0.4, label=paste0('(+',n,')')), 
             colour = 'red', hjust=1)
 
 ggpub('oddsMultiNotFailedImp', height= 120)
@@ -763,7 +774,7 @@ plotMultiGoodCL +
   geom_point(data = oddsMultiGoodCLImp, 
              aes(x=var, y=odds), colour='red', shape=4) +
   geom_text(data = missingCountsCL,
-            aes(x=var, y= 0.35, label=paste0('(+',n,')')), 
+            aes(x=var, y= 0.4, label=paste0('(+',n,')')), 
             colour = 'red', hjust=1)
 
 ggpub('oddsMultiCLGoodImp', height= 120)

@@ -164,6 +164,13 @@ cv.by.device <-  params.single.devices %>%
   select(charDev, type, eqa, mean.cv.w, mean.cv, a, b) %>%
   mutate_at(vars(mean.cv.w, mean.cv, a, b), round, digits=3)
 
+cv.by.device.diff <- cv.by.device %>%
+  group_by(charDev) %>%
+  filter('Instand' %in% eqa & 'RfB' %in% eqa) %>%
+  summarise(diff = abs(mean.cv.w[eqa == 'Instand']
+                       - mean.cv.w[eqa == 'RfB']))
+
+
 cv.by.device.table <- cv.by.device %>%
   group_by(charDev, type) %>%
   summarise(

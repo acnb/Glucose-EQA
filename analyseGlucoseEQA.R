@@ -28,4 +28,5 @@ source(here::here('R', 'charFunction.R'))
 source(here::here('R', 'pathway.R'))
 source(here::here('R', 'lots.R'))
 source(here::here('R', 'bias.R'))
+source(here::here('R', 'rmvEval.R'))
 source(here::here("R", "biasBudget.R")) # needs results from 'charFunction.R'

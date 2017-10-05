@@ -1,16 +1,16 @@
 captions <- list(
   'allParticipants' = 'number of distinct participants',
-  'minParticipants' = 'minimum number of participants per round',
-  'meanParticipants' = 'mean number of participants per round',
-  'maxParticipants' = 'maximum number of participants per round',
-  'minSuccessRate' = 'minimum success rate per round',
-  'meanSuccessRate' = 'mean success rate per round',
-  'maxSuccessRate' = 'maximum success rate per round',
+  'minParticipants' = 'minimum number of participants per distribution',
+  'meanParticipants' = 'mean number of participants per distribution',
+  'maxParticipants' = 'maximum number of participants per distribution',
+  'minSuccessRate' = 'minimum success rate per distribution',
+  'meanSuccessRate' = 'mean success rate per distribution',
+  'maxSuccessRate' = 'maximum success rate per distribution',
   'samples' = 'total number of samples', 
   'minValue' = 'minimum target value',
   'meanValue' = 'mean target value',
   'maxValue' = 'maximum target value',
-  'roundsPerYear' = 'rounds per year',
+  'roundsPerYear' = 'distributions per year',
   'nDevices' = 'number of different devices'
 )
 

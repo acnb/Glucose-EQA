@@ -19,7 +19,7 @@ eqaData <- eqaAll %>%
   mutate(class = cut(relDiff, breaks=seq(-.3, .3, .01), 
                      labels = seq(-.3+.01, .3, .01)-(.01/2))
          , n= n()) %>%
-  group_by(eqa, class) %>%
+  group_by(eqa, type, class) %>%
   summarise(p = n()/n[1]) %>%
   ungroup() %>%
   mutate(class = as.numeric(as.character(class))) %>%
@@ -27,12 +27,15 @@ eqaData <- eqaAll %>%
   
 
 ggplot() +
+  geom_rect(data = eqaData, aes(fill = type),
+            xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
   geom_col(data = eqaData, aes(x=class, y = p))+
   scale_x_continuous(limits = c(-.3,.3), labels=percent) +
   geom_polygon(data = poly, aes(x=x, y=y), 
                fill = "red", alpha=.1) +
   theme_pub(base_size = 10) +
   scale_y_continuous(labels=percent) + 
+  scale_fill_manual(values= typeColors, guide = "none") +
   xlab("relative deviation from assigned value") +
   ylab("frequency") +
   facet_grid(eqa~.)
