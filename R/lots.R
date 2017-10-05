@@ -6,8 +6,9 @@ frequentLots <- eqaAll %>%
   group_by(round, sample, lot, device, year) %>%
   mutate(n_in_lot = n()) %>%
   filter(n_in_lot > 7) %>%
-  mutate(e = 1.253*(getSfromAlgA(value)/getMufromAlgA(value))/sqrt(n_in_lot)) %>%
-  filter(e < .025) %>%
+  mutate(e = 1.253*(getSfromAlgA(value)/sqrt(n_in_lot)),
+         mu = getMufromAlgA(value)) %>%
+  filter(e/mu < .025) %>%
   group_by(round, sample, device, year) %>%
   filter(n_distinct(lot) > 1) %>%
   ungroup()
