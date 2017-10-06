@@ -75,8 +75,8 @@ plotAllowedBias <- function(data, title){
                   position = position_dodge())+
     scale_y_continuous(sec.axis = 
                          sec_axis(~./mmolConvFactor, 
-                                  name = "allowed bias (mmol/l)"), 
-                       name='allowed bias (mg/dl)') +
+                                  name = "allowed bias (mmol/L)"), 
+                       name='allowed bias (mg/dL)') +
     scale_fill_manual(values = typeColors, guide = "none") + 
     theme_pub() +
     coord_flip() +
@@ -302,12 +302,12 @@ ggplot()+
             color="blue", size = 1.2) +
   scale_y_continuous(limits = c(0, 300), sec.axis = 
                        sec_axis(~./mmolConvFactor, 
-                                name = "measured blood glucose (mmol/l)"), 
-                     name='measured blood glucose (mg/dl)') +
+                                name = "measured blood glucose (mmol/L)"), 
+                     name='measured blood glucose (mg/dL)') +
   scale_x_continuous(limits = c(0, 300), sec.axis = 
                        sec_axis(~./mmolConvFactor, 
-                                name = "reference blood glucose (mmol/l)"), 
-                     name='reference blood glucose (mg/dl)') +
+                                name = "reference blood glucose (mmol/L)"), 
+                     name='reference blood glucose (mg/dL)') +
   theme_pub() +
   coord_equal() +
   theme(legend.position = 'right',

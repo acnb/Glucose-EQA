@@ -93,8 +93,8 @@ ggplot() +
   scale_fill_manual(values = typeColors, guide = "none") + 
   scale_x_continuous(sec.axis = 
                        sec_axis(~./mmolConvFactor, 
-                                name = "assigned value (mmol/l)"), 
-                     name='assigned value (mg/dl)') +
+                                name = "assigned value (mmol/L)"), 
+                     name='assigned value (mg/dL)') +
   theme(strip.text.x = element_text(size = 5), 
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 45)) +
@@ -139,12 +139,12 @@ ggplot() +
                                                  linetype = 0))) +
   scale_x_continuous(sec.axis = 
                        sec_axis(~./mmolConvFactor, 
-                                name = "assigned value (mmol/l)"), 
-                     name='assigned value (mg/dl)') +
+                                name = "assigned value (mmol/L)"), 
+                     name='assigned value (mg/dL)') +
   scale_y_continuous(sec.axis = 
                        sec_axis(~./mmolConvFactor, 
-                                name = "residuals (mmol/l)"), 
-                     name='residuals (mg/dl)') +
+                                name = "residuals (mmol/L)"), 
+                     name='residuals (mg/dL)') +
   theme(strip.text.x = element_text(size = 5), 
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 45)) +
