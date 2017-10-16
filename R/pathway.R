@@ -91,7 +91,7 @@ ggplot(outcomeStats, aes(x=act, y=p, label = n, fill =  pHasFailed)) +
   scale_fill_manual(
     values = c('TRUE' = '#d7191c', 'FALSE' = '#71A20A', typeColors),
     labels = c('TRUE' ='after year with failures',
-               'FALSE' = 'after year without faiures'),
+               'FALSE' = 'after year without failures'),
     breaks = c('TRUE', 'FALSE')) +
   facet_grid(.~eqa)+ 
   xlab("yearly actions in EQAs") +
@@ -100,7 +100,7 @@ ggplot(outcomeStats, aes(x=act, y=p, label = n, fill =  pHasFailed)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1), 
         legend.title = element_blank())
 
-ggpub("pathAll", width=100, height = 120)
+ggpub("pathAll", height = 120)
 
 changeGraph <- eqaAll %>%
   filter(type == 'POCT') %>%
