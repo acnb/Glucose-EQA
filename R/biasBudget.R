@@ -78,6 +78,7 @@ plotAllowedBias <- function(data, title){
                                   name = "allowed bias (mmol/L)"), 
                        name='allowed bias (mg/dL)') +
     scale_fill_manual(values = typeColors, guide = "none") + 
+    scale_color_manual(values = eqaColors) +
     theme_pub() +
     coord_flip() +
     xlab('') +
@@ -273,8 +274,10 @@ ggplot()+
   geom_point(data = data.frame(x=0, y=0, f=c(0:4)),
              aes(x=x,y=y, fill=f))+
   geom_point(data= riskpair, aes(x=RefVal, y=MeasVal, color = RiskFactor)) +
-  geom_line(data = borders, aes(x=ref, y=lower), color='black') + 
-  geom_line(data = borders, aes(x=ref, y=upper), color='black') + 
+  geom_line(data = borders, aes(x=ref, y=lower), color='black', 
+            size = 1.2, linetype = 'dotted') + 
+  geom_line(data = borders, aes(x=ref, y=upper), color='black', 
+            size = 1.2, linetype = 'dotted') + 
   scale_fill_gradientn(
     values =scales::rescale(c(0, 1, 2, 3, 3.75)),
     limits=c(0,4),
@@ -297,9 +300,9 @@ ggplot()+
                   ymax=pmin(300, x+charFunc(x)*3)),
               fill = "grey50", color='grey50', alpha=.5) +
   geom_line(data=budgetPos, aes(x=x, y=y),
-            color="blue", size = 1.2) +
+            color="blue", size = 1.3) +
   geom_line(data=budgetNeg, aes(x=x, y=y),
-            color="blue", size = 1.2) +
+            color="blue", size = 1.3) +
   scale_y_continuous(limits = c(0, 300), sec.axis = 
                        sec_axis(~./mmolConvFactor, 
                                 name = "measured blood glucose (mmol/L)"), 

@@ -163,23 +163,8 @@ byMulti <- eqaAllMulti %>%
   mutate(sharedDevice = ifelse(n < 100 | minNLabs < 10, 
                                "others", sharedDevice)) %>%
   mutate( minNLabs = NULL) %>%
-  # group_by(device, eqa) %>%
-  # mutate(n = n(), nlabs = n_distinct(pid)) %>%
-  # ungroup() %>%
-  # mutate(device = as.character(device)) %>%
-  # mutate(device = if_else(n < 100, "others", device)) %>%
-  # mutate(device = if_else(nlabs < 10, "others", device)) %>%
-  # mutate(device = if_else(str_detect(device, 'Others --'), "others", device)) %>%
-  # mutate(device = if_else(str_detect(device, "Anderer Hersteller, other producer"),
-                          # "others", device)) %>%
-  #rowwise() %>%
-  # mutate(device = replaceCLNames(device), 
-  #        sharedDevice = replaceCLNames(sharedDevice)) %>%
-  # ungroup() %>%
   mutate(sharedDevice = factor(sharedDevice), n = NULL) %>%
   mutate(sharedDevice = fct_relevel(sharedDevice, 'others')) %>%
-  # mutate(device = factor(device)) %>%
-  # mutate(device = fct_relevel(device, 'others')) %>%
   mutate(seqGrp = fct_relevel(seqGrp, 'new')) %>%
   mutate(status.prev = fct_relevel(status.prev, 'acceptable')) %>%
   mutate(extraEqa = fct_relevel(extraEqa, 'none'))
@@ -328,7 +313,8 @@ ggplot(oddsAllGoodCL,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~., scales = "free_y", space="free_y") +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10), 
+                     breaks = c(.1, .5, 1, 5, 10)) +
   scale_x_discrete(labels=oddsLabels)+
   scale_fill_manual(values= typeColors, guide = "none") +
   theme_pub()
@@ -340,11 +326,6 @@ oddsDevGoodPOCT <- calcOdds(byMulti %>%
                             'sharedDevice', 'good') %>%
   mutate(var = str_replace(var, 'sharedDevice', ''))%>%
   arrange(odds) 
-
-# oddsDevGoodPOCT <- oddsDevGoodPOCT %>%
-#   mutate(var = factor(var, 
-#                       levels = 
-#                         unique(oddsDevGoodPOCT[eqa == 'Instand 800', 'var'])))
 
 
 oddsAllGoodPOCT <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
@@ -363,7 +344,8 @@ ggplot(oddsAllGoodPOCT,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,10),
+                     breaks = c(.1, .5, 1, 5, 10)) +
   scale_x_discrete(labels=oddsLabels)+
   theme_pub()
 
@@ -380,7 +362,8 @@ ggplot(oddsPrevEqaGood,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.01,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.01,10),
+                     breaks = c(.1, .5, 1, 5, 10)) +
   scale_x_discrete(labels=oddsLabels)+
   scale_fill_manual(values= typeColors, guide = "none") +
   theme_pub()
@@ -422,7 +405,8 @@ ggplot(oddsAllNotFailedCL,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~., scales = "free_y", space="free_y") +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,20)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,20),
+                     breaks = c(.1, .5, 1, 5, 10, 20)) +
   scale_x_discrete(labels=oddsLabels)+
   scale_fill_manual(values= typeColors, guide = "none") +
   theme_pub()
@@ -458,7 +442,8 @@ ggplot(oddsAllNotFailedPOCT,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,30)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.1,30),
+                     breaks = c(.1, .5, 1, 5, 10, 20, 30)) +
   scale_x_discrete(labels=oddsLabels)+
   scale_fill_manual(values= typeColors, guide = "none") +
   theme_pub()
@@ -476,7 +461,8 @@ ggplot(oddsPrevEqaNotFailed,
   xlab('') +
   ylab('univariate odds ratios') +
   facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.01,10)) +
+  scale_y_continuous(trans=log10_trans(), limits = c(.01,10),
+                     breaks = c(.1, .5,  1, 5, 10)) +
   scale_x_discrete(labels=oddsLabels)+
   scale_fill_manual(values= typeColors, guide = "none") +
   theme_pub()
@@ -560,7 +546,8 @@ multivariatePlot <- function(oddsConf){
     ylab('multivariate odds ratios') +
     geom_hline(yintercept = 1, linetype = 2) +
     facet_grid(xvar~., scales ='free_y', space='free_y', labeller = varLabeller) + 
-    scale_y_continuous(trans=log10_trans(), limits = c(.1, maxLim)) +
+    scale_y_continuous(trans=log10_trans(), limits = c(.1, maxLim),
+                       breaks = c(.1, .5, 1, 5, 10, maxLim)) +
     scale_x_discrete(labels = oddsLabels) +
     scale_fill_manual(values= typeColors, guide = "none") +
     theme_pub() +

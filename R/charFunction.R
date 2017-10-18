@@ -113,11 +113,6 @@ lines.char.func <- lines.char.func %>%
   commonOrder() %>%
   mutate(charDev = fct_reorder(charDev, as.numeric(type)))
 
-
-
-eqaColors = c('Instand' = '#f5961e',
-              'RfB' = '#4ba1d1')
-
 ggplot() +
   geom_rect(data = resids, aes(fill = type),
                xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
@@ -211,7 +206,7 @@ cv.by.device.diff <- cv.by.device %>%
 
 
 cv.by.device.table <- cv.by.device %>%
-  group_by(eqa, charDev, type) %>%
+  group_by(charDev, type) %>%
   summarise(
     eqa = paste0(eqa, collapse = "\n"),
     mean = paste0(mean.cv.w, collapse = "\n"),

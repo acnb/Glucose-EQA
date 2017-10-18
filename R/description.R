@@ -1,68 +1,89 @@
-captions <- list(
-  'allParticipants' = 'number of distinct participants',
-  'minParticipants' = 'minimum number of participants per distribution',
-  'meanParticipants' = 'mean number of participants per distribution',
-  'maxParticipants' = 'maximum number of participants per distribution',
-  'minSuccessRate' = 'minimum success rate per distribution',
-  'meanSuccessRate' = 'mean success rate per distribution',
-  'maxSuccessRate' = 'maximum success rate per distribution',
-  'samples' = 'total number of samples', 
-  'minValue' = 'minimum target value',
-  'meanValue' = 'mean target value',
-  'maxValue' = 'maximum target value',
-  'roundsPerYear' = 'distributions per year',
-  'nDevices' = 'number of different devices'
+captions <- c(
+  'nPart' = 'number of distinct participants',
+  'participants' = 'distinct participants per distribution',
+  'successRate' = 'success rate per distribution',
+  'nSamples' = 'total number of samples', 
+  'rmv' = 'reference method value mg/dL (mmol/L)',
+  'nRounds' = 'distributions per year',
+  'nDev' = 'number of distinct devices'
 )
 
-descriptionRV <- eqaAll %>%
-  group_by(eqa) %>%
-  mutate(allParticipants = n_distinct(pid)) %>%
-  ungroup() %>%
-  select(eqa, year, round, pid, status, allParticipants) %>%
+descriptionRounds <- eqaAll %>%
+  select(eqa, year, round, pid, status) %>%
   distinct() %>%
   group_by(eqa, year, round) %>%
   summarise(participants = n_distinct(pid),
-            successRate = sum(status != 'failed')/n(), 
-            allParticipants = allParticipants[1]) %>%
-  group_by(eqa) %>%
-  summarise(allParticipants = allParticipants[1],
-            minParticipants = min(participants),
-            meanParticipants = round(mean(participants)),
-            maxParticipants = max(participants),
-            minSuccessRate = round(min(successRate), 2),
-            meanSuccessRate = round(mean(successRate), 2),
-            maxSuccessRate = round(max(successRate), 2))  %>%
+            successRate = sum(status != 'failed')/n()) %>%
+  gather(key, value, participants, successRate) %>%
+  group_by(eqa, key) %>%
+  summarise(
+    minimum = min(value),
+    mean = mean(value),
+    maximum = max(value) 
+  ) %>%
   ungroup() %>%
-  commonOrder() %>%
-  arrange(eqa)
+  gather(stat, value, minimum, mean, maximum)
 
-
-descriptionSamples <- eqaAll %>% 
-  group_by(eqa) %>%
-  summarise(samples = n(), 
-            minValue = min(target),
-            meanValue = round(mean(target), 2),
-            maxValue = max(target),
-            roundsPerYear = max(round),
-            nDevices = as.character(n_distinct(device))) %>%
+descriptionSamples <- eqaAll %>%
+  filter(!is.na(rmv)) %>%
+  select(eqa, year, round, sample, rmv) %>%
+  distinct() %>%
+  mutate(key = 'rmv') %>%
+  group_by(eqa, key) %>%
+  summarise(
+    minimum = min(rmv),
+    mean = mean(rmv),
+    maximum = max(rmv) 
+  ) %>%
   ungroup() %>%
-  commonOrder() %>%
-  arrange(eqa) 
-  
+  gather(stat, value, minimum, mean, maximum)
 
-descrAll <- rbind(t(descriptionRV), t(descriptionSamples))
-colnames(descrAll) <- descrAll[1,]
-descrAll <- descrAll[-c(1,9),]
-descrAll <- cbind(rownames(descrAll),descrAll)
-descrAll <- descrAll %>%
-  as.data.frame() %>%
-  mutate(V1 = as.character(V1)) %>%
+descriptionEqa <- eqaAll %>%
+  group_by(eqa) %>%
+  summarise(
+    nPart = n_distinct(pid),
+    nDev = n_distinct(device),
+    nRounds = max(round),
+    nSamples = n()
+  ) %>%
+  gather(key, value, nPart, nDev, nRounds, nSamples) %>%
+  mutate(stat = '')
+
+
+descriptionAll <- rbind(descriptionEqa, descriptionRounds, descriptionSamples) %>%
+  commonOrder() 
+
+
+descTable <- descriptionAll %>%
+  mutate(value = case_when(
+    key == 'nPart' ~ as.character(round(value, 0)),
+    key == 'nDev' ~ as.character(round(value, 0)),
+    key == 'nRounds' ~ as.character(round(value, 0)),
+    key == 'nSamples' ~ as.character(round(value, 0)),
+    key == 'participants' ~ as.character(round(value, 1)),
+    key == 'successRate' ~ as.character(round(value, 2)),
+    key == 'rmv' ~ paste0(round(value, 0), ' (', round(value/mmolConvFactor, 2),
+                          ')'),
+    TRUE ~ as.character(value)
+  )) %>%
+  spread(eqa, value) %>%
+  mutate(stat = as.factor(stat)) %>%
+  mutate(stat = fct_relevel(stat, 'minimum', 'mean', 'maximum')) %>%
+  arrange(stat) %>%
+  group_by(key) %>%
+  summarise_all(paste0, collapse = '\n') %>%
+  ungroup() %>%
   rowwise() %>%
-  mutate(V1 = ifelse(V1 %in% names(captions), captions[[V1]], V1)) %>%
-  ungroup() 
+  ungroup() %>%
+  mutate(key = as.factor(key)) %>%
+  mutate(key = fct_relevel(key, "nPart", "nSamples", "nDev", "nRounds",
+                           "participants", "successRate", "rmv" )) %>%
+  arrange(key) %>%
+  mutate(key = as.character(key)) %>%
+  mutate(key = if_else(key %in% names(captions), captions[key], key))
 
-colnames(descrAll)[1] <- ' '
+colnames(descTable)[c(1,2)] <- ' '
 
 rtf<-RTF(here('tab', 'description.rtf'))
-addTable(rtf,descrAll)
-done(rtf)
+addTable(rtf,descTable)
+done(rtf)  
