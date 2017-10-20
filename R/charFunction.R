@@ -140,7 +140,7 @@ ggplot() +
         legend.title = element_blank(), 
         axis.text.x = element_text(angle = 45),
         plot.subtitle = element_text(hjust = .5)) +
-  ggtitle('relative imprecision depending on concentration',
+  ggtitle('relative imprecision over the measuring range',
           subtitle = 'modeled using the characteristic function') +
   ylab('relative imprecision (spread / consensus value)')
 

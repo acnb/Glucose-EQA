@@ -90,6 +90,41 @@ calcOdds <- function(data, x, y){
 }
 
 
+
+multivariatePlot <- function(oddsConf, ylab = 'multivariate odds ratios',
+                             extraFacetVars = NULL){
+  maxLim <- ceiling(max(oddsConf$X97.5..)/10)*10
+  
+  range <- log(maxLim)-log(0.1)
+  textPos <- exp((range*0.1)+log(0.1))
+  
+  facetForm <- 'xvar~.'
+  
+  if (!is.null(extraFacetVars)){
+    facetForm <- paste(extraFacetVars, facetForm, collapse = '+', sep = '+')
+  }
+  
+  ggplot()+
+    geom_rect(data = oddsConf, aes(fill=type), xmin = -Inf, xmax = Inf,
+              ymin = -Inf,ymax = Inf) +
+    geom_point(data = oddsConf, aes(x=var, y=odds))+
+    geom_errorbar(data = oddsConf, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
+    geom_text(data = oddsConf, aes(x=var, y= textPos, label=n), hjust=1) +
+    coord_flip() +
+    xlab('') +
+    ylab(ylab) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    facet_grid(as.formula(facetForm), scales ='free_y', 
+               space='free_y', labeller = varLabeller) + 
+    scale_y_continuous(trans=log10_trans(), limits = c(.1, maxLim),
+                       breaks = c(.1, .5, 1, 5, 10, maxLim)) +
+    scale_x_discrete(labels = oddsLabels) +
+    scale_fill_manual(values= typeColors, guide = "none") +
+    theme_pub() +
+    theme(strip.text.y = element_text(size = 8))
+}
+
+
 ## data ----
 
 eqaAllMulti <- eqaAll %>%
@@ -289,67 +324,44 @@ oddsParticipateGood <- calcOdds(byMulti, 'extraEqa', 'good')
 
 oddsDevGoodCL <- calcOdds(byMulti %>% filter(type == 'CL'), 'sharedDevice',
                           'good') %>%
-  mutate(var = str_replace(var, 'sharedDevice', ''))%>%
-  arrange(odds) 
+  mutate(var = str_replace(var, 'sharedDevice', '')) %>%
+  mutate(var = factor(var)) %>%
+  mutate(var = fct_reorder2(var,-as.numeric(eqa), -odds))
 
-oddsDevGoodCL <- oddsDevGoodCL %>%
-  mutate(var = factor(var, 
-                      levels = unique(oddsDevGoodCL$var)))
-
-oddsAllGoodCL <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
+oddsAllGoodCL <-  rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
   filter(type == 'CL' ) %>%
   mutate(var = factor(var)) %>%
   commonOrder() %>%
-  mutate(var = fct_expand(var, levels(oddsDevGoodCL$var))) %>%
-  rbind(oddsDevGoodCL)
+  mutate(var = fct_expand(var, levels(oddsDevGoodCL$var)))
 
-ggplot(oddsAllGoodCL,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5.., fill=type))+
-  geom_rect(xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = 2) +
-  xlab('') +
-  ylab('univariate odds ratios') +
-  facet_grid(eqa~., scales = "free_y", space="free_y") +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10), 
-                     breaks = c(.1, .5, 1, 5, 10)) +
-  scale_x_discrete(labels=oddsLabels)+
-  scale_fill_manual(values= typeColors, guide = "none") +
-  theme_pub()
+oddsAllGoodCL <- rbind(oddsDevGoodCL, oddsAllGoodCL)
 
-ggpub('oddsAllGoodCL', height= 200)
+
+multivariatePlot(oddsAllGoodCL, extraFacetVars = 'eqa', 
+                 ylab = 'univariate odds ratios')
+
+ggpub('oddsAllGoodCL', height= 200, device = 'pdf')
 
 oddsDevGoodPOCT <- calcOdds(byMulti %>% 
                               filter(type == 'POCT'),
                             'sharedDevice', 'good') %>%
   mutate(var = str_replace(var, 'sharedDevice', ''))%>%
-  arrange(odds) 
+  mutate(var = factor(var)) %>%
+  mutate(var = fct_reorder2(var,-as.numeric(eqa), -odds))
 
 
 oddsAllGoodPOCT <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
   filter(type == 'POCT') %>%
   mutate(var = factor(var)) %>%
   commonOrder() %>%
-  mutate(var = fct_expand(var, levels(oddsDevGoodPOCT$var))) %>%
-  rbind(oddsDevGoodPOCT)
+  mutate(var = fct_expand(var, levels(oddsDevGoodPOCT$var)))
 
-ggplot(oddsAllGoodPOCT,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5..))+
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = 2) +
-  xlab('') +
-  ylab('univariate odds ratios') +
-  facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,10),
-                     breaks = c(.1, .5, 1, 5, 10)) +
-  scale_x_discrete(labels=oddsLabels)+
-  theme_pub()
+oddsAllGoodPOCT <- rbind(oddsDevGoodPOCT, oddsAllGoodPOCT)
 
-ggpub('oddsAllGoodPOCT', height= 180)
+multivariatePlot(oddsAllGoodPOCT, extraFacetVars = 'eqa', 
+                 ylab = 'univariate odds ratios')
+
+ggpub('oddsAllGoodPOCT', height= 180, device = 'pdf')
 
 
 ggplot(oddsPrevEqaGood,
@@ -382,73 +394,43 @@ oddsParticipateNotFailed <- calcOdds(byMulti, 'extraEqa', 'notFailed')
 oddsDevNotFailedCL <- calcOdds(byMulti %>% filter(type=='CL'), 'sharedDevice',
                           'notFailed') %>%
   mutate(var = str_replace(var, 'sharedDevice', ''))%>%
-  arrange(odds) 
-
-oddsDevNotFailedCL <- oddsDevNotFailedCL %>%
-  mutate(var = factor(var, 
-                      levels = unique(oddsDevNotFailedCL$var)))
+  mutate(var = factor(var)) %>%
+  mutate(var = fct_reorder2(var,-as.numeric(eqa), -odds)) 
 
 oddsAllNotFailedCL <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
   filter(type == 'CL') %>%
   mutate(var = factor(var)) %>%
   commonOrder() %>%
-  mutate(var = fct_expand(var, levels(oddsDevNotFailedCL$var))) %>%
-  rbind(oddsDevNotFailedCL)
+  mutate(var = fct_expand(var, levels(oddsDevNotFailedCL$var)))
 
-ggplot(oddsAllNotFailedCL,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5.., fill=type))+
-  geom_rect(xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = 2) +
-  xlab('') +
-  ylab('univariate odds ratios') +
-  facet_grid(eqa~., scales = "free_y", space="free_y") +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,20),
-                     breaks = c(.1, .5, 1, 5, 10, 20)) +
-  scale_x_discrete(labels=oddsLabels)+
-  scale_fill_manual(values= typeColors, guide = "none") +
-  theme_pub()
+oddsAllNotFailedCL <- rbind(oddsDevNotFailedCL, oddsAllNotFailedCL)
 
-ggpub('oddsAllNotFailedCL', height= 200)
+multivariatePlot(oddsAllNotFailedCL, extraFacetVars = 'eqa', 
+                 ylab = 'univariate odds ratios')
+
+ggpub('oddsAllNotFailedCL', height= 200, device = 'pdf')
 
 oddsDevNotFailedPOCT <- calcOdds(byMulti %>% 
                               filter(type == 'POCT'),
                             'sharedDevice', 'notFailed') %>%
   mutate(var = str_replace(var, 'sharedDevice', ''))%>%
-  arrange(odds) 
-
-# oddsDevNotFailedPOCT <- oddsDevNotFailedPOCT %>%
-#   mutate(var = factor(var, 
-#                       levels = 
-#                         unique(oddsDevNotFailedPOCT[eqa == 'Instand 800', 'var'])))
+  mutate(var = factor(var)) %>%
+  mutate(var = fct_reorder2(var,-as.numeric(eqa), -odds))
 
 
 oddsAllNotFailedPOCT <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
   filter(type == 'POCT') %>%
   mutate(var = factor(var)) %>%
   commonOrder() %>%
-  mutate(var = fct_expand(var, levels(oddsDevNotFailedPOCT$var))) %>%
-  rbind(oddsDevNotFailedPOCT)
+  mutate(var = fct_expand(var, levels(oddsDevNotFailedPOCT$var))) 
 
-ggplot(oddsAllNotFailedPOCT,
-       aes(x=var, y=odds, ymin=X2.5.., ymax=X97.5.., fill=type))+
-  geom_rect(xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
-  geom_point()+
-  geom_errorbar() + 
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = 2) +
-  xlab('') +
-  ylab('univariate odds ratios') +
-  facet_grid(eqa~.) +
-  scale_y_continuous(trans=log10_trans(), limits = c(.1,30),
-                     breaks = c(.1, .5, 1, 5, 10, 20, 30)) +
-  scale_x_discrete(labels=oddsLabels)+
-  scale_fill_manual(values= typeColors, guide = "none") +
-  theme_pub()
+oddsAllNotFailedPOCT <- rbind(oddsDevNotFailedPOCT, oddsAllNotFailedPOCT)
 
-ggpub('oddsAllNotFailedPOCT', height= 180)
+
+multivariatePlot(oddsAllNotFailedPOCT, extraFacetVars = 'eqa', 
+                 ylab = 'univariate odds ratios')
+
+ggpub('oddsAllNotFailedPOCT', height= 180, device = 'pdf')
 
 
 ggplot(oddsPrevEqaNotFailed,
@@ -528,31 +510,6 @@ multiOdds <- function(data, good = TRUE){
   result
 }
 
-
-multivariatePlot <- function(oddsConf){
-  maxLim <- ceiling(max(oddsConf$X97.5..)/10)*10
-  
-  range <- log(maxLim)-log(0.1)
-  textPos <- exp((range*0.1)+log(0.1))
-  
-  ggplot()+
-    geom_rect(data = oddsConf, aes(fill=type), xmin = -Inf, xmax = Inf,
-              ymin = -Inf,ymax = Inf) +
-    geom_point(data = oddsConf, aes(x=var, y=odds))+
-    geom_errorbar(data = oddsConf, aes(x=var, ymin=X2.5.., ymax=X97.5..)) + 
-    geom_text(data = oddsConf, aes(x=var, y= textPos, label=n), hjust=1) +
-    coord_flip() +
-    xlab('') +
-    ylab('multivariate odds ratios') +
-    geom_hline(yintercept = 1, linetype = 2) +
-    facet_grid(xvar~., scales ='free_y', space='free_y', labeller = varLabeller) + 
-    scale_y_continuous(trans=log10_trans(), limits = c(.1, maxLim),
-                       breaks = c(.1, .5, 1, 5, 10, maxLim)) +
-    scale_x_discrete(labels = oddsLabels) +
-    scale_fill_manual(values= typeColors, guide = "none") +
-    theme_pub() +
-    theme(strip.text.y = element_text(size = 8))
-}
 
 ### POCT ----
 
