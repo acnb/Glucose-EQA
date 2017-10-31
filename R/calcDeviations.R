@@ -1,8 +1,4 @@
 # Instand 100, 2015, 3: n = 1
-# Instand 111, 2015, 3: n = 1
-# Instand 111, 2012, 5: ?
-# Instand 111, 2015, 4: n = 1
-
 
 eqaAll <- eqaAll %>%
   filter(!is.na(value)) %>%
@@ -29,20 +25,9 @@ eqaAll <- eqaAll %>%
   mutate(split = ifelse(eqa=='Instand 800' & year == '2011' & 
                           round == 2 & split %in% c('83', '84'), 
          '83+84', split)) %>%
-  
   mutate(eqaRound = paste0(eqa, '-', year, '-', round)) %>%
   mutate_at(vars(device, eqa), as.character) %>%
   left_join(sharedDevs, by=c('device' = 'device', 'eqa' = 'eqa')) %>%
-  # mutate(sharedDevice = ifelse(eqa == 'RfB GL' & !is.na(devInstand),
-  #                              devInstand, NA)) %>%
-  # mutate(sharedDevice = ifelse(eqa == 'Instand 800' & 
-  #                                device %in% sharedDevs$devInstand,
-  #         device, sharedDevice)) %>%
-  # mutate(sharedDevice = ifelse(eqa == 'RfB KS', NA, sharedDevice)) %>%
-  # mutate(sharedDevice = ifelse(eqa == 'RfB GL' & split == 'Anderes Gerät', 
-  #                              'others', sharedDevice)) %>%
-  # mutate(sharedDevice = ifelse(eqa == 'Instand 800' & split == '90', 
-  #                              'others', sharedDevice)) %>%
   mutate(eqa = case_when(eqa == 'Instand 100' ~ 'CL-Instand',
                          eqa == 'Instand 800' ~ 'POCT-Instand',
                          eqa == 'RfB KS' ~ 'CL-RfB',

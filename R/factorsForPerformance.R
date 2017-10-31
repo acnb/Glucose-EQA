@@ -91,7 +91,7 @@ calcOdds <- function(data, x, y){
 
 
 
-multivariatePlot <- function(oddsConf, ylab = 'multivariate odds ratios',
+multivariablePlot <- function(oddsConf, ylab = 'multivariable odds ratios',
                              extraFacetVars = NULL){
   maxLim <- ceiling(max(oddsConf$X97.5..)/10)*10
   
@@ -236,7 +236,10 @@ percPlot <- function(var, xlabel){
     filter(!is.na(UQ(qvar))) %>%
     group_by(UQ(qvar), eqa) %>%
     summarise(n=n(), type = type[1]) %>%
+    group_by(eqa) %>%
+    mutate(p = n/sum(n)) %>%
     ungroup() %>%
+    mutate(label = paste0(n, "\n[", round(p,2)*100, "%]", sep="")) %>%
     commonOrder()
   
   ggplot() +
@@ -244,7 +247,7 @@ percPlot <- function(var, xlabel){
               xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
     geom_col(data=percData, aes_(x=UQ(qvar), y=~p, fill=~status),
              position = position_stack(reverse = TRUE)) +
-    geom_text(data=countData, aes_(x=UQ(qvar), y=1.1, label=~n), size=3) +
+    geom_text(data=countData, aes_(x=UQ(qvar), y=1.13, label=~label), size=3) +
     facet_grid(.~eqa, scales = 'free_x') +
     theme_pub() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -253,7 +256,7 @@ percPlot <- function(var, xlabel){
     scale_fill_manual(breaks= names(colors.status), 
                       values=c(colors.status, typeColors)) +
     xlab(xlabel) +
-    ylab('percentage of individual EQA participations') +
+    ylab('individual EQA participations') +
     theme(legend.title = element_blank())
 }
 
@@ -277,7 +280,10 @@ byDeviceGraph <- byMulti %>%
 byDeviceGraphN <- byMulti%>%
   group_by(eqa, sharedDevice) %>%
   summarise(n=n(), type = type[1]) %>%
-  ungroup()
+  group_by(eqa) %>%
+  mutate(p = n/sum(n)) %>%
+  ungroup() %>%
+  mutate(label = paste0(n, "\n[", round(p,2)*100, "%]", sep=""))
 
 for(e in unique(byDeviceGraph$eqa)){
   grData <- byDeviceGraph %>% 
@@ -299,12 +305,12 @@ for(e in unique(byDeviceGraph$eqa)){
               xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
     geom_col(data = grData, aes(x=sharedDevice,  y=p, fill=status),
              position = position_stack(reverse = TRUE)) +
-    geom_text(data = grN, aes(x=sharedDevice, y=1.1, label=n),size=3)+ 
+    geom_text(data = grN, aes(x=sharedDevice, y=1.13, label=label),size=3)+ 
     scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
     scale_fill_manual(breaks= names(colors.status),
                       values=c(colors.status, typeColors)) +
     xlab(paste0('devices in ', e)) +
-    ylab('percentage of individual EQA participations') +
+    ylab('individual EQA participations') +
     theme_pub() +
     theme(legend.title = element_blank(), 
           axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
@@ -337,7 +343,7 @@ oddsAllGoodCL <-  rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
 oddsAllGoodCL <- rbind(oddsDevGoodCL, oddsAllGoodCL)
 
 
-multivariatePlot(oddsAllGoodCL, extraFacetVars = 'eqa', 
+multivariablePlot(oddsAllGoodCL, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
 ggpub('oddsAllGoodCL', height= 200, device = 'pdf')
@@ -358,7 +364,7 @@ oddsAllGoodPOCT <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
 
 oddsAllGoodPOCT <- rbind(oddsDevGoodPOCT, oddsAllGoodPOCT)
 
-multivariatePlot(oddsAllGoodPOCT, extraFacetVars = 'eqa', 
+multivariablePlot(oddsAllGoodPOCT, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
 ggpub('oddsAllGoodPOCT', height= 180, device = 'pdf')
@@ -405,7 +411,7 @@ oddsAllNotFailedCL <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
 
 oddsAllNotFailedCL <- rbind(oddsDevNotFailedCL, oddsAllNotFailedCL)
 
-multivariatePlot(oddsAllNotFailedCL, extraFacetVars = 'eqa', 
+multivariablePlot(oddsAllNotFailedCL, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
 ggpub('oddsAllNotFailedCL', height= 200, device = 'pdf')
@@ -427,7 +433,7 @@ oddsAllNotFailedPOCT <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
 oddsAllNotFailedPOCT <- rbind(oddsDevNotFailedPOCT, oddsAllNotFailedPOCT)
 
 
-multivariatePlot(oddsAllNotFailedPOCT, extraFacetVars = 'eqa', 
+multivariablePlot(oddsAllNotFailedPOCT, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
 ggpub('oddsAllNotFailedPOCT', height= 180, device = 'pdf')
@@ -452,9 +458,9 @@ ggplot(oddsPrevEqaNotFailed,
 ggpub('oddsPrevEqaNotFailed', height= 120)
 
 
-## multivariate odds ----
+## multivariable odds ----
 
-multivariateConf <- function(res){
+multivariableConf <- function(res){
   oddsConf <- exp(cbind(odds = coef(res), confint(res)))
   
   oddsConf <- as.data.frame(oddsConf)
@@ -478,7 +484,7 @@ multivariateConf <- function(res){
   oddsConf
 }
 
-multivariateCount <- function(data){
+multivariableCount <- function(data){
   counts <- data %>%
     group_by(seqGrp, extraEqa, sharedDevice) %>%
     summarise(n = n()) %>%
@@ -497,8 +503,8 @@ multiOdds <- function(data, good = TRUE){
                data = data, family = binomial(link = "logit"))
   }
   
-  odds <- multivariateConf(res)
-  counts <- multivariateCount(data)
+  odds <- multivariableConf(res)
+  counts <- multivariableCount(data)
   
   result <- odds %>%
     left_join(counts, by=c('var' = 'var', 'xvar' = 'xvar')) %>%
@@ -517,13 +523,13 @@ multiOdds <- function(data, good = TRUE){
 oddsMultiGoodPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
                                good = TRUE)
 
-plotMultiGoodPOCT <- multivariatePlot(oddsMultiGoodPOCT)
+plotMultiGoodPOCT <- multivariablePlot(oddsMultiGoodPOCT)
 ggpub('oddsMultiGoodPOCT', height= 100, plot = plotMultiGoodPOCT)
 
 oddsMultiNotFailedPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
                                     good = FALSE)
 
-plotMultiNotFailedPOCT  <- multivariatePlot(oddsMultiNotFailedPOCT)
+plotMultiNotFailedPOCT  <- multivariablePlot(oddsMultiNotFailedPOCT)
 ggpub('oddsMultiNotFailedPOCT', height= 100, plot = plotMultiNotFailedPOCT)
 
 ### CL ----
@@ -531,13 +537,13 @@ ggpub('oddsMultiNotFailedPOCT', height= 100, plot = plotMultiNotFailedPOCT)
 oddsMultiGoodCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                good = TRUE)
 
-plotMultiGoodCL <- multivariatePlot(oddsMultiGoodCL)
+plotMultiGoodCL <- multivariablePlot(oddsMultiGoodCL)
 ggpub('oddsMultiGoodCL', height= 100, plot = plotMultiGoodCL)
 
 oddsMultiNotFailedCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                     good = FALSE)
 
-plotMultiNotFailedCL  <- multivariatePlot(oddsMultiNotFailedCL)
+plotMultiNotFailedCL  <- multivariablePlot(oddsMultiNotFailedCL)
 ggpub('oddsMultiNotFailedCL', height= 100, plot = plotMultiNotFailedCL)
 
 ## imputation ----

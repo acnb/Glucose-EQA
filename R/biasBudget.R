@@ -126,46 +126,59 @@ ggpub('allowedBiasSEG', height=230)
 ## bias budget klee simulation ----
 
 biasBudgetSim.CV <- function(cv, sd=3){
-  insulinCategories <-  c(80, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
+  insulinCategoriesUpper <-  
+    c(79, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
   
-  borders <- data.frame(ref = insulinCategories,
-                        lower = c(-Inf, -Inf, 
-                                  insulinCategories[
-                                    1:(length(insulinCategories)-2)]),
-                        upper = c(insulinCategories[
-                          3:(length(insulinCategories))],
-                                  Inf, Inf)) 
+  bordersL <- data.frame(ref = insulinCategoriesUpper+1,
+                         limit = c(-Inf, -Inf, insulinCategoriesUpper[
+                           1:(length(insulinCategoriesUpper)-2)])+1,
+                         type = 'lower')
+  
+  bordersU <- data.frame(ref = insulinCategoriesUpper,
+                         limit = c(insulinCategoriesUpper[
+                           3:(length(insulinCategoriesUpper))],
+                           Inf, Inf),
+                         type = 'upper') 
+  borders <- rbind(bordersL, bordersU)
   
   budget <- borders %>%
-    mutate(diffUpper = upper - (ref+ref*cv*sd),
-           diffLower = lower - (ref-ref*cv*sd)) %>%
-    summarise(budgetLower = max(diffLower), 
-              refLower = ref[which.max(diffLower)],
-              budgetUpper = min(diffUpper), 
-              refUpper = ref[which.min(diffUpper)])
-  
+    mutate(diff = abs(ref - limit) - ref*cv*sd) %>%
+    group_by(type) %>%
+    summarise(budget = min(diff), ref = ref[which.min(diff)]) %>%
+    ungroup() %>%
+    summarise(budgetLower = -budget[type == 'lower'], 
+              refLower = ref[type == 'lower'],
+              budgetUpper = budget[type == 'upper'], 
+              refUpper = ref[type == 'upper'])
   budget
 }
 
 
 biasBudgetSim.CharFunc <- function(a, b, sd=3){
-  insulinCategories <-  c(80, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
+  insulinCategoriesUpper <-  
+    c(79, 90, 110, 130, 150, 175, 200, 250, 300, 350, 400)
   
-  borders <- data.frame(ref = insulinCategories,
-                        lower = c(-Inf, -Inf, 
-                                  insulinCategories[
-                                    1:(length(insulinCategories)-2)]),
-                        upper = c(insulinCategories[
-                          3:(length(insulinCategories))],
-                          Inf, Inf)) 
+  bordersL <- data.frame(ref = insulinCategoriesUpper+1,
+                         limit = c(-Inf, -Inf, insulinCategoriesUpper[
+                           1:(length(insulinCategoriesUpper)-2)])+1,
+                         type = 'lower')
+  
+  bordersU <- data.frame(ref = insulinCategoriesUpper,
+                         limit = c(insulinCategoriesUpper[
+                          3:(length(insulinCategoriesUpper))],
+                          Inf, Inf),
+                        type = 'upper') 
+  borders <- rbind(bordersL, bordersU)
   
   budget <- borders %>%
-    mutate(diffUpper = upper - (ref+sqrt(a^2+(ref*b)^2)*sd),
-           diffLower = lower - (ref-sqrt(a^2+(ref*b)^2)*sd)) %>%
-    summarise(budgetLower = max(diffLower), 
-              refLower = ref[which.max(diffLower)],
-              budgetUpper = min(diffUpper), 
-              refUpper = ref[which.min(diffUpper)])
+    mutate(diff = abs(ref - limit) - (sqrt(a^2+(ref*b)^2)*sd)) %>%
+    group_by(type) %>%
+    summarise(budget = min(diff), ref = ref[which.min(diff)]) %>%
+    ungroup() %>%
+    summarise(budgetLower = -budget[type == 'lower'], 
+              refLower = ref[type == 'lower'],
+              budgetUpper = budget[type == 'upper'], 
+              refUpper = ref[type == 'upper'])
   
   budget
 } 
@@ -298,7 +311,7 @@ ggplot()+
               aes(x = x,
                   ymin=pmax(0, x-charFunc(x)*3),
                   ymax=pmin(300, x+charFunc(x)*3)),
-              fill = "grey50", color='grey50', alpha=.5) +
+              fill = "grey", color='grey', alpha=.8) +
   geom_line(data=budgetPos, aes(x=x, y=y),
             color="blue", size = 1.3) +
   geom_line(data=budgetNeg, aes(x=x, y=y),

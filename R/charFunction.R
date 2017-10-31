@@ -66,9 +66,6 @@ targetsAndImprecision <- dataCharFunc %>%
   commonOrder() %>%
   mutate(charDev = fct_reorder(charDev, as.numeric(type)))
 
-
-charFuncConf2 <- charFuncConf
-
 paramsCharFunc <- ddply(targetsAndImprecision, 
                         c('eqa', 'charDev', 'type'), 
                         function(x){
@@ -219,4 +216,46 @@ cv.by.device.table <- cv.by.device %>%
 
 rtf<-RTF(here('tab', 'precision.rtf'))
 addTable(rtf,cv.by.device.table)
+done(rtf)
+
+###
+
+
+charFuncCV <- function(a, b, x){
+  sd <- sqrt(a^2+(b*x)^2)
+  sd/x
+}
+
+
+diffCvs <- paramsCharFunc2 %>%
+  mutate(cv80 = charFuncCV(a, b, 80),
+         cv300 = charFuncCV(a, b, 300)) %>%
+  mutate(diffP = cv80/cv300)
+
+
+cv.diffs.by.device <-  resids %>%
+  group_by(type, eqa, charDev) %>%
+  summarise(mean.cv.w = weighted.mean(cv, w), mean.cv = mean(cv)) %>%
+  ungroup() %>%
+  join(diffCvs, by=c('type' = 'type',
+                             'eqa' = 'eqa', 
+                             'charDev' = 'charDev')) %>%
+  mutate_at(vars(-type, -eqa, -charDev), round, digits=3) %>%
+  group_by(charDev, type) %>%
+  summarise(
+    eqa = paste0(eqa, collapse = "\n"),
+    mean = paste0(mean.cv.w, collapse = "\n"),
+    alpha = paste0(a, collapse = "\n"),
+    beta = paste0(b, collapse = "\n"),
+    cv80 = paste0(cv80, collapse = "\n"),
+    cv300 = paste0(cv300, collapse = "\n"),
+    diffP = paste0(round(diffP, 1), collapse = "\n")
+  ) %>%
+  ungroup() %>%
+  transmute(device = charDev, type=type, eqa = eqa, 
+            mean=mean, alpha=alpha, beta=beta, cv80 = cv80, 
+            cv300 = cv300, diffP = diffP)
+
+rtf<-RTF(here('tab', 'cvDiffs.rtf'))
+addTable(rtf,cv.diffs.by.device)
 done(rtf)

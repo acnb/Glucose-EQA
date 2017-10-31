@@ -24,15 +24,15 @@ statsByRound.All <- eqaAll %>%
 
 
 for(e in unique(eqaAll$eqa)){
-  rtf<-RTF(paste0(base.dir,'tab/', e, ' - statsBySample.rtf'))
+  rtf<-RTF(here::here('tab', paste0(e, ' - statsBySample.rtf')))
   addTable(rtf,statsBySample %>% filter(eqa == e))
   done(rtf)
   
-  rtf<-RTF(paste0(base.dir,'tab/', e, ' - statsByRound.All.rtf'))
+  rtf<-RTF(here::here('tab', paste0( e, ' - statsByRound.All.rtf')))
   addTable(rtf,statsByRound.All %>% filter(eqa == e))
   done(rtf)
   
-  rtf<-RTF(paste0(base.dir,'tab/', e, ' - statsByRound.Split.rtf'))
+  rtf<-RTF(here::here('tab', paste0( e, ' - statsByRound.Split.rtf')))
   addTable(rtf,statsByRound.Split %>% filter(eqa == e))
   done(rtf)
 }
@@ -62,7 +62,7 @@ for(y in 2012:2016){
   
   dfx <- df$data
   
-  eqa <- 'Instand 100'
+  eqa <- 'CL-Instand'
   year <- NULL
   round <- NULL
   for(i in 1:nrow(dfx)){
@@ -91,7 +91,7 @@ comp100 <- instand100 %>%
                                 'year' = 'year', 
                                 'round' = 'round',
                                 'sample' = 'sample')) %>%
-  mutate(diffN = n.x-n.y, diffMean = mittelwert - mean)
+  mutate(diffN = n.x-n.y, diffMean = mittelwert - mean, qDiff = q-(p*100))
 
 # compare instand 800 with web ----
 
