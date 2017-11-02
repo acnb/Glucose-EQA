@@ -135,7 +135,8 @@ ggplot() +
            position = position_stack(reverse = TRUE)) +
   geom_text(data = changeGraphN, aes(x=devNotFailedBefore, 
                                      y=1.1, label=label),size=3)+ 
-  scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1)) +
+  scale_y_continuous(labels=percent, breaks = c(0,.25, .5, .75, 1),
+                     limits = c(0, 1.15)) +
   scale_x_discrete(labels = c('TRUE' = 'new device', 
                               'FALSE' = 'no new device')) + 
   scale_fill_manual(values=colors.status) +
