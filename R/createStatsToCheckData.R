@@ -7,7 +7,7 @@ library(rvest)
 
 
 statsBySample <- eqaAll %>% 
-#  mutate(useForMean = (year == '2016' | abs(relDiff) < .5)) %>%
+  #  mutate(useForMean = (year == '2016' | abs(relDiff) < .5)) %>%
   group_by(eqa, year, round, split, sample) %>%
   mutate( n = n()) %>%
   ungroup() %>%
@@ -164,7 +164,7 @@ for(i in 1:nrow(samples)){
   web$split <- data$split
   
   comp800 <- rbind(comp800, web)
-  }
+}
 
 comp800$diff.mean <- comp800$mittelwert - comp800$mean.data
 comp800$diff.n <- comp800$n - comp800$n.data
@@ -177,183 +177,185 @@ mean(selSample$value)
 
 
 ### compare RfB to web
-
-zielwerte.rfb <- ldply(c(2012:2016), function(year){
-  zw.by.year <- ldply(c(1:4), function(r){
-    url <- paste0("http://www.rfb.bio/cgi/displayAnaStats?rv_type=GL&",
-                  "rvTypeForDetails=GL&year=", year,
-                  "&rv_num=",r ,"&analyte=all&",
-                  "searchType=rv_type&anaV=2")
-    durl <- gsub('[^a-zA-Z0-9]', '', url)
-    if (!file.exists(paste0(here('generated'), '/',  durl, '.html'))){
-      print(paste("download", year, r))
-      download.file(url, destfile = paste0(here('generated'), '/', durl, 
-                                           '.html'))
-    }
-    base.Page <- read_html(paste0(here('generated'), '/', durl, '.html'), 
-                           encoding = "UTF-8")
-    
-    stat.a.tr <- base.Page %>%
-      html_node('table.stats')%>%
-      html_node('tbody') %>%
-      html_nodes('tr')
-    
-    min.a <- stat.a.tr %>%
-      html_nodes('td:nth-child(6)') %>%
-      html_text()
-    
-    med.a <- stat.a.tr %>%
-      html_nodes('td:nth-child(8)') %>%
-      html_text()
-    
-    link.a <- stat.a.tr %>%
-      html_nodes('td:nth-child(3)') %>%
-      html_nodes('a') %>%
-      html_attr('href') %>%
-      str_replace("javascript:open_plotwindow\\('", "http://www.rfb.bio/") %>%
-      str_replace("'\\)", "")
-    
-    max.a <- stat.a.tr %>%
-      html_nodes('td:nth-child(10)') %>%
-      html_text()
-    
-    stat.b.tr <- base.Page %>%
-      html_nodes('table.stats')%>%
-      magrittr::extract(2) %>%
-      html_node('tbody') %>%
-      html_nodes('tr')
-    
-    min.b <- stat.b.tr %>%
-      html_nodes('td:nth-child(6)') %>%
-      html_text()
-    
-    med.b <- stat.b.tr %>%
-      html_nodes('td:nth-child(8)') %>%
-      html_text()
-    
-    max.b <- stat.b.tr %>%
-      html_nodes('td:nth-child(10)') %>%
-      html_text()
-    
-    link.b <- stat.b.tr %>%
-      html_nodes('td:nth-child(3)') %>%
-      html_nodes('a') %>%
-      html_attr('href') %>%
-      str_replace("javascript:open_plotwindow\\('", "http://www.rfb.bio/") %>%
-      str_replace("'\\)", "")
-    
-    stats <- rbind(data.frame('sample' = 'a', min = min.a, med = med.a, max = max.a, 
-                              link = link.a),
-                   data.frame('sample' = 'b', min = min.b, med = med.b, max = max.b, 
-                              link = link.b))%>%
-      mutate_at(vars(min, med, max), as.character) %>%
-      mutate_at(vars(min, med, max), str_replace, pattern = ',', replacement ='.') %>%
-      mutate_at(vars(min, med, max), as.numeric)
-    
-    
-    js.links <- base.Page %>% 
-      html_nodes('a.zeile_verlinkung') %>% 
-      html_attr('href')
-    
-    js.links <- js.links[grepl('showPlot', js.links)]
-    
-    
-    js.links <- gsub("javascript:open_plotwindow\\('", "http://www.rfb.bio/", js.links)
-    
-    js.links <- gsub("'\\)", "", js.links)
-    
-    zielwerte.einzeln <- data.frame()
-    
-    for (l in js.links){
-      l.durl <- gsub('[^a-zA-Z0-9]', '', l)
-      if (!file.exists(paste0(here('generated'), '/',  l.durl, '.html'))){
-        print(paste("download", l))
-        download.file(l, destfile = paste0(here('generated'), '/', l.durl, 
-                                           '.html'))
+if (file.exists(here('generated', 'zielwerteRfB.RData'))){
+  load(here('generated', 'zielwerteRfB.RData'))
+} else {
+  zielwerte.rfb <- ldply(c(2012:2016), function(year){
+    zw.by.year <- ldply(c(1:4), function(r){
+      url <- paste0("http://www.rfb.bio/cgi/displayAnaStats?rv_type=GL&",
+                    "rvTypeForDetails=GL&year=", year,
+                    "&rv_num=",r ,"&analyte=all&",
+                    "searchType=rv_type&anaV=2")
+      durl <- gsub('[^a-zA-Z0-9]', '', url)
+      if (!file.exists(paste0(here('generated'), '/',  durl, '.html'))){
+        print(paste("download", year, r))
+        download.file(url, destfile = paste0(here('generated'), '/', durl, 
+                                             '.html'))
       }
-      plot.page <- read_html(paste0(here('generated'), '/', l.durl, '.html'), 
+      base.Page <- read_html(paste0(here('generated'), '/', durl, '.html'), 
                              encoding = "UTF-8")
       
-      geraet.name <- plot.page %>% 
-        html_node("table > tr:nth-child(4) > td") %>% 
+      stat.a.tr <- base.Page %>%
+        html_node('table.stats')%>%
+        html_node('tbody') %>%
+        html_nodes('tr')
+      
+      min.a <- stat.a.tr %>%
+        html_nodes('td:nth-child(6)') %>%
         html_text()
       
-      zw.a <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(2) > td:nth-child(2)') %>%
+      med.a <- stat.a.tr %>%
+        html_nodes('td:nth-child(8)') %>%
         html_text()
       
-      zw.b <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(2) > td:nth-child(3)') %>%
+      link.a <- stat.a.tr %>%
+        html_nodes('td:nth-child(3)') %>%
+        html_nodes('a') %>%
+        html_attr('href') %>%
+        str_replace("javascript:open_plotwindow\\('", "http://www.rfb.bio/") %>%
+        str_replace("'\\)", "")
+      
+      max.a <- stat.a.tr %>%
+        html_nodes('td:nth-child(10)') %>%
         html_text()
       
+      stat.b.tr <- base.Page %>%
+        html_nodes('table.stats')%>%
+        magrittr::extract(2) %>%
+        html_node('tbody') %>%
+        html_nodes('tr')
       
-      n <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(1) > td:nth-child(2)') %>%
+      min.b <- stat.b.tr %>%
+        html_nodes('td:nth-child(6)') %>%
         html_text()
       
-      sd.a <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(5) > td:nth-child(2)') %>%
+      med.b <- stat.b.tr %>%
+        html_nodes('td:nth-child(8)') %>%
         html_text()
       
-      sd.b <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(5) > td:nth-child(3)') %>%
+      max.b <- stat.b.tr %>%
+        html_nodes('td:nth-child(10)') %>%
         html_text()
       
-      m.a <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(4) > td:nth-child(2)') %>%
-        html_text()
+      link.b <- stat.b.tr %>%
+        html_nodes('td:nth-child(3)') %>%
+        html_nodes('a') %>%
+        html_attr('href') %>%
+        str_replace("javascript:open_plotwindow\\('", "http://www.rfb.bio/") %>%
+        str_replace("'\\)", "")
       
-      m.b <- plot.page %>%
-        html_node('#kitDetails > tr:nth-child(4) > td:nth-child(3)') %>%
-        html_text()
+      stats <- rbind(data.frame('sample' = 'a', min = min.a, med = med.a, max = max.a, 
+                                link = link.a),
+                     data.frame('sample' = 'b', min = min.b, med = med.b, max = max.b, 
+                                link = link.b))%>%
+        mutate_at(vars(min, med, max), as.character) %>%
+        mutate_at(vars(min, med, max), str_replace, pattern = ',', replacement ='.') %>%
+        mutate_at(vars(min, med, max), as.numeric)
       
-      if (l %in% stats$link){
-        s <- stats %>%
-          filter(link == l) %>%
-          transmute(min.a = min[sample == 'a'],
-                    med.a = med[sample == 'a'],
-                    max.a = max[sample == 'a'],
-                    min.b = min[sample == 'b'],
-                    med.b = med[sample == 'b'],
-                    max.b = max[sample == 'b']) %>%
-          unique()
+      
+      js.links <- base.Page %>% 
+        html_nodes('a.zeile_verlinkung') %>% 
+        html_attr('href')
+      
+      js.links <- js.links[grepl('showPlot', js.links)]
+      
+      
+      js.links <- gsub("javascript:open_plotwindow\\('", "http://www.rfb.bio/", js.links)
+      
+      js.links <- gsub("'\\)", "", js.links)
+      
+      zielwerte.einzeln <- data.frame()
+      
+      for (l in js.links){
+        l.durl <- gsub('[^a-zA-Z0-9]', '', l)
+        if (!file.exists(paste0(here('generated'), '/',  l.durl, '.html'))){
+          print(paste("download", l))
+          download.file(l, destfile = paste0(here('generated'), '/', l.durl, 
+                                             '.html'))
+        }
+        plot.page <- read_html(paste0(here('generated'), '/', l.durl, '.html'), 
+                               encoding = "UTF-8")
+        
+        geraet.name <- plot.page %>% 
+          html_node("table > tr:nth-child(4) > td") %>% 
+          html_text()
+        
+        zw.a <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(2) > td:nth-child(2)') %>%
+          html_text()
+        
+        zw.b <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(2) > td:nth-child(3)') %>%
+          html_text()
+        
+        
+        n <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(1) > td:nth-child(2)') %>%
+          html_text()
+        
+        sd.a <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(5) > td:nth-child(2)') %>%
+          html_text()
+        
+        sd.b <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(5) > td:nth-child(3)') %>%
+          html_text()
+        
+        m.a <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(4) > td:nth-child(2)') %>%
+          html_text()
+        
+        m.b <- plot.page %>%
+          html_node('#kitDetails > tr:nth-child(4) > td:nth-child(3)') %>%
+          html_text()
+        
+        if (l %in% stats$link){
+          s <- stats %>%
+            filter(link == l) %>%
+            transmute(min.a = min[sample == 'a'],
+                      med.a = med[sample == 'a'],
+                      max.a = max[sample == 'a'],
+                      min.b = min[sample == 'b'],
+                      med.b = med[sample == 'b'],
+                      max.b = max[sample == 'b']) %>%
+            unique()
+        }
+        else {
+          s <- data.frame(min.a = NA,
+                          med.a = NA,
+                          max.a = NA,
+                          min.b = NA,
+                          med.b = NA,
+                          max.b = NA)
+        }
+        
+        zielwerte.einzeln <- rbind(zielwerte.einzeln, 
+                                   cbind(data.frame("geraet.name" = geraet.name, 
+                                                    "zw.a" = zw.a, 
+                                                    "zw.b" = zw.b,
+                                                    'sd.a' = str_trim(sd.a),
+                                                    'sd.b' = str_trim(sd.b),
+                                                    'n' = str_trim(n),
+                                                    'm.a' = str_trim(m.a),
+                                                    'm.b' = str_trim(m.b)),
+                                         s))
       }
-      else {
-        s <- data.frame(min.a = NA,
-                        med.a = NA,
-                        max.a = NA,
-                        min.b = NA,
-                        med.b = NA,
-                        max.b = NA)
-      }
       
-      zielwerte.einzeln <- rbind(zielwerte.einzeln, 
-                                 cbind(data.frame("geraet.name" = geraet.name, 
-                                                  "zw.a" = zw.a, 
-                                                  "zw.b" = zw.b,
-                                                  'sd.a' = str_trim(sd.a),
-                                                  'sd.b' = str_trim(sd.b),
-                                                  'n' = str_trim(n),
-                                                  'm.a' = str_trim(m.a),
-                                                  'm.b' = str_trim(m.b)),
-                                       s))
-    }
-    
-    
-    zielwerte.einzeln <- zielwerte.einzeln %>%
-      unique() %>%
-      filter(zw.a != '-') %>%
-      filter(geraet.name != 'Alle Methoden') %>%
-      mutate_at(vars(zw.a, zw.b, sd.a, sd.b, n, m.a, m.b), 
-                str_replace, pattern = ',', replacement = '.') %>%
-      mutate_at(vars(zw.a, zw.b, sd.a, sd.b, n, m.a, m.b), 
-                as.numeric) %>%
-      mutate(round = r)
+      
+      zielwerte.einzeln <- zielwerte.einzeln %>%
+        unique() %>%
+        filter(zw.a != '-') %>%
+        filter(geraet.name != 'Alle Methoden') %>%
+        mutate_at(vars(zw.a, zw.b, sd.a, sd.b, n, m.a, m.b), 
+                  str_replace, pattern = ',', replacement = '.') %>%
+        mutate_at(vars(zw.a, zw.b, sd.a, sd.b, n, m.a, m.b), 
+                  as.numeric) %>%
+        mutate(round = r)
+    })
+    zw.by.year$year <- year 
+    zw.by.year
   })
-  zw.by.year$year <- year 
-  zw.by.year
-})
-
+}
 
 zielwerte.rfb.ids2 <- zielwerte.rfb %>%
   mutate(kid = str_match(geraet.name, 'Kit (\\d+)')[,2]) %>%
@@ -366,9 +368,27 @@ zielwerte.rfb.ids2 <- zielwerte.rfb %>%
   mutate(kid = as.character(kid)) %>%
   mutate(zid = paste(year, round, kid, geraet.name, sep='-'))
 
+rfbLongNames <- zielwerte.rfb %>%
+  filter(!str_detect(geraet.name, 'Kit')) %>%
+  select(geraet.name) %>%
+  unique() %>%
+  mutate(short = str_sub(geraet.name, 1, 30), long = as.character(geraet.name)) %>%
+  filter(short != long)
+
+repl <- rfbLongNames$long
+names(repl) <- rfbLongNames$short
+repl <- repl[repl != 'Abbott, FreeStyle Precision Neo H/Pro']
+
+
 zielwerte.rfb.ids3 <- zielwerte.rfb.ids2 %>%
   select(2:16, 18) %>%
-  unique()
+  unique() %>%
+  mutate(geraet.name.s = str_replace_all(geraet.name.s, repl)) %>%
+  mutate(geraet.name.s = if_else(year == '2016' & round == 4 & 
+                                   geraet.name.s == 'Abbott, FreeStyle Precision Neo H',
+                                 'Abbott, FreeStyle Precision Neo H/Pro',
+                                 geraet.name.s
+  ))
 
 eingelesen <- eqaAll %>%
   filter(eqa == 'POCT-RfB') %>%
@@ -378,10 +398,9 @@ eingelesen <- eqaAll %>%
             nTeiln = n_distinct(pid)) %>%
   ungroup() %>%
   mutate(device = as.character(device),
-         uid = 1:n())
+         uid = 1:n()) 
 
 eingelesen.Merge <- zielwerte.rfb.ids3 %>%
-#  filter(eqa == 'RfB GL') %>%
   left_join(eingelesen, by = c('year' = 'year',
                                'round' = 'round',
                                'geraet.name.s' = 'device')) %>%

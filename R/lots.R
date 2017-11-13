@@ -38,6 +38,6 @@ pLots <- ggplot(diffBetweenLots,
         panel.grid.major.y = element_blank(),
         legend.position="none") +
   xlab('') +
-  ylab("maximum difference between lots\n in same EQA round")
+  ylab("maximum difference between lots\n in same EQA distribution")
 
 ggpub('lots', width = 85, height= 100)

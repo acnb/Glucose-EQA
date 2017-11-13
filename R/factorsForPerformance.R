@@ -193,11 +193,11 @@ byMulti <- eqaAllMulti %>%
   group_by(sharedDevice, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
   group_by(sharedDevice) %>%
-  mutate(minNLabs = min(nlabs)) %>%
+  mutate(minNLabs = min(nlabs), nSum = sum(n)) %>%
   ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 100 | minNLabs < 10, 
+  mutate(sharedDevice = ifelse(nSum < 100 | minNLabs < 10, 
                                "others", sharedDevice)) %>%
-  mutate( minNLabs = NULL) %>%
+  mutate(minNLabs = NULL, nSum = NULL) %>%
   mutate(sharedDevice = factor(sharedDevice), n = NULL) %>%
   mutate(sharedDevice = fct_relevel(sharedDevice, 'others')) %>%
   mutate(seqGrp = fct_relevel(seqGrp, 'new')) %>%
@@ -212,9 +212,9 @@ byMultiComplete <- byMulti %>%
   group_by(sharedDevice, eqa) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
   group_by(sharedDevice) %>%
-  mutate(minNLabs = min(nlabs)) %>%
+  mutate(minNLabs = min(nlabs), totNLabs = n_distinct(pid), nSum = sum(n)) %>%
   ungroup() %>%
-  mutate(sharedDevice = ifelse(n < 50 | minNLabs < 10,
+  mutate(sharedDevice = ifelse(nSum < 50 | minNLabs < 5 | totNLabs < 10,
                                "others", sharedDevice)) %>%
   mutate(sharedDevice = as.factor(sharedDevice)) %>%
   mutate(sharedDevice = fct_relevel(sharedDevice, 'others'))
