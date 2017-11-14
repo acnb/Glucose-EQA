@@ -66,6 +66,25 @@ eqaAll <- eqaAll %>%
     sharedDevice == "Roche Diagnostics" ~
       "Roche Diagnostics [others]",
     TRUE ~ sharedDevice
-  )) %>%
-  mutate(sharedDevice = factor(sharedDevice))
+  )) 
+
+# remove rarely used
+eqaAll <- eqaAll %>%
+  group_by(sharedDevice, eqa) %>%
+  mutate(nlabs = n_distinct(pid), nRounds = n_distinct(eqaRound)) %>%
+  group_by(sharedDevice) %>%
+  mutate(minLabs = min(nlabs), minRounds = min(nRounds), n = n(), nEqa = n_distinct(eqa), n = n()) %>%
+  ungroup() %>%
+  mutate(sharedDevice = if_else(
+    nEqa < 2 | minLabs < 10 | minRounds < 3 | n < 100,
+    "others", sharedDevice)) %>%
+  mutate(sharedDevice = if_else(is.na(sharedDevice),
+    "others", sharedDevice)) %>%
+  mutate(sharedDevice = factor(sharedDevice)) %>%
+  mutate(minLabs = NULL, minRounds = NULL, n = NULL, nEqa = NULL, n = NULL)
+      
+      
+      
+
+
   
