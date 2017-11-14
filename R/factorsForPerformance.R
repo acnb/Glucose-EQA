@@ -318,7 +318,7 @@ for(e in unique(byDeviceGraph$eqa)){
 }
 
 
-## univariate odds ----
+## univariable odds ----
 
 ### good results ----
 oddsSeqGrpGood <- calcOdds(byMulti, 'seqGrp', 'good')
@@ -345,7 +345,7 @@ oddsAllGoodCL <- rbind(oddsDevGoodCL, oddsAllGoodCL) %>%
   
 
 multivariablePlot(oddsAllGoodCL, extraFacetVars = 'eqa', 
-                 ylab = 'univariate odds ratios')
+                 ylab = 'univariable odds ratios')
 
 ggpub('oddsAllGoodCL', height= 200, device = 'pdf')
 
@@ -367,7 +367,7 @@ oddsAllGoodPOCT <- rbind(oddsDevGoodPOCT, oddsAllGoodPOCT) %>%
   mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
 
 multivariablePlot(oddsAllGoodPOCT, extraFacetVars = 'eqa', 
-                 ylab = 'univariate odds ratios')
+                 ylab = 'univariable odds ratios')
 
 ggpub('oddsAllGoodPOCT', height= 200, device = 'pdf')
 
@@ -380,7 +380,7 @@ ggplot(oddsPrevEqaGood,
   coord_flip() +
   geom_hline(yintercept = 1, linetype = 2) +
   xlab('') +
-  ylab('univariate odds ratios') +
+  ylab('univariable odds ratios') +
   facet_grid(eqa~.) +
   scale_y_continuous(trans=log10_trans(), limits = c(.01,10),
                      breaks = c(.1, .5, 1, 5, 10)) +
@@ -415,7 +415,7 @@ oddsAllNotFailedCL <- rbind(oddsDevNotFailedCL, oddsAllNotFailedCL) %>%
   mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
 
 multivariablePlot(oddsAllNotFailedCL, extraFacetVars = 'eqa', 
-                 ylab = 'univariate odds ratios')
+                 ylab = 'univariable odds ratios')
 
 ggpub('oddsAllNotFailedCL', height= 200, device = 'pdf')
 
@@ -438,7 +438,7 @@ oddsAllNotFailedPOCT <- rbind(oddsDevNotFailedPOCT, oddsAllNotFailedPOCT) %>%
 
 
 multivariablePlot(oddsAllNotFailedPOCT, extraFacetVars = 'eqa', 
-                 ylab = 'univariate odds ratios')
+                 ylab = 'univariable odds ratios')
 
 ggpub('oddsAllNotFailedPOCT', height= 200, device = 'pdf')
 
@@ -451,7 +451,7 @@ ggplot(oddsPrevEqaNotFailed,
   coord_flip() +
   geom_hline(yintercept = 1, linetype = 2) +
   xlab('') +
-  ylab('univariate odds ratios') +
+  ylab('univariable odds ratios') +
   facet_grid(eqa~.) +
   scale_y_continuous(trans=log10_trans(), limits = c(.01,10),
                      breaks = c(.1, .5,  1, 5, 10)) +
@@ -528,7 +528,11 @@ oddsMultiGoodPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
                                good = TRUE)
 
 plotMultiGoodPOCT <- multivariablePlot(oddsMultiGoodPOCT)
-ggpub('oddsMultiGoodPOCT', height= 100, plot = plotMultiGoodPOCT)
+ggpub('oddsMultiGoodPOCT', height= 120, plot = plotMultiGoodPOCT)
+
+oddsMultiGoodAll <- rbind(oddsMultiGoodCL, oddsMultiGoodPOCT)
+multivariablePlot(oddsMultiGoodAll, extraFacetVars = 'type')
+ggpub('final/oddsMultiGoodAll', height= 200,  device = 'pdf')
 
 oddsMultiNotFailedPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
                                     good = FALSE)
@@ -542,7 +546,9 @@ oddsMultiGoodCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                good = TRUE)
 
 plotMultiGoodCL <- multivariablePlot(oddsMultiGoodCL)
-ggpub('oddsMultiGoodCL', height= 100, plot = plotMultiGoodCL)
+ggpub('oddsMultiGoodCL', height= 120, plot = plotMultiGoodCL)
+ggpub('final/ooddsMultiGoodCL', height= 120, 
+      plot = plotMultiGoodCL, device = 'pdf')
 
 oddsMultiNotFailedCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                     good = FALSE)

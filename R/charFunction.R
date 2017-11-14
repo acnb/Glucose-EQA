@@ -259,3 +259,17 @@ cv.diffs.by.device <-  resids %>%
 rtf<-RTF(here('tab', 'cvDiffs.rtf'))
 addTable(rtf,cv.diffs.by.device)
 done(rtf)
+
+stat.cv.by.device <- cv.by.device %>% 
+  group_by(type) %>%
+  summarise(min = min(mean.cv.w), 
+            med = median(mean.cv.w), 
+            max= max(mean.cv.w),
+            lIQR.a = quantile(a, probs = 0.25, names = FALSE),
+            med.a = median(a),
+            uIQR.a = quantile(a, probs = 0.75, names = FALSE),
+            lIQR.b = quantile(b, probs = 0.25, names = FALSE),
+            med.b = median(b),
+            uIQR.b = quantile(b, probs = 0.75, names = FALSE))
+
+

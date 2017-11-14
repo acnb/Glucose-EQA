@@ -330,3 +330,4 @@ ggplot()+
         legend.direction = 'vertical')
   
 ggpub('biasBudget')
+ggpub('final/biasBudget', device = 'tiff', dpi = 600)

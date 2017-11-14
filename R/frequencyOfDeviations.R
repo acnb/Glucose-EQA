@@ -41,3 +41,6 @@ ggplot() +
   facet_grid(eqa~.)
 
 ggpub('precision', formatWidth="oneColumn", height= 120)
+ggpub('final/precision', formatWidth="oneColumn", 
+      height= 120, device = 'tiff',   dpi = 600)
+

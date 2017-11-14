@@ -40,4 +40,7 @@ pLots <- ggplot(diffBetweenLots,
   xlab('') +
   ylab("maximum difference between lots\n in same EQA distribution")
 
-ggpub('lots', width = 85, height= 100)
+ggpub('lots', width = 85, height= 100, plot = pLots)
+ggpub('final/lots', formatWidth="oneColumn", 
+      height= 100, plot = pLots, device = 'tiff', 
+      dpi = 600)
