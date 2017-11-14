@@ -340,8 +340,9 @@ oddsAllGoodCL <-  rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
   commonOrder() %>%
   mutate(var = fct_expand(var, levels(oddsDevGoodCL$var)))
 
-oddsAllGoodCL <- rbind(oddsDevGoodCL, oddsAllGoodCL)
-
+oddsAllGoodCL <- rbind(oddsDevGoodCL, oddsAllGoodCL) %>%
+  mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
+  
 
 multivariablePlot(oddsAllGoodCL, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
@@ -362,12 +363,13 @@ oddsAllGoodPOCT <- rbind(oddsSeqGrpGood, oddsParticipateGood) %>%
   commonOrder() %>%
   mutate(var = fct_expand(var, levels(oddsDevGoodPOCT$var)))
 
-oddsAllGoodPOCT <- rbind(oddsDevGoodPOCT, oddsAllGoodPOCT)
+oddsAllGoodPOCT <- rbind(oddsDevGoodPOCT, oddsAllGoodPOCT) %>%
+  mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
 
 multivariablePlot(oddsAllGoodPOCT, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
-ggpub('oddsAllGoodPOCT', height= 180, device = 'pdf')
+ggpub('oddsAllGoodPOCT', height= 200, device = 'pdf')
 
 
 ggplot(oddsPrevEqaGood,
@@ -409,7 +411,8 @@ oddsAllNotFailedCL <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
   commonOrder() %>%
   mutate(var = fct_expand(var, levels(oddsDevNotFailedCL$var)))
 
-oddsAllNotFailedCL <- rbind(oddsDevNotFailedCL, oddsAllNotFailedCL)
+oddsAllNotFailedCL <- rbind(oddsDevNotFailedCL, oddsAllNotFailedCL) %>%
+  mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
 
 multivariablePlot(oddsAllNotFailedCL, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
@@ -430,13 +433,14 @@ oddsAllNotFailedPOCT <- rbind(oddsSeqGrpNotFailed, oddsParticipateNotFailed) %>%
   commonOrder() %>%
   mutate(var = fct_expand(var, levels(oddsDevNotFailedPOCT$var))) 
 
-oddsAllNotFailedPOCT <- rbind(oddsDevNotFailedPOCT, oddsAllNotFailedPOCT)
+oddsAllNotFailedPOCT <- rbind(oddsDevNotFailedPOCT, oddsAllNotFailedPOCT) %>%
+  mutate(xvar = factor(xvar, levels = c("sharedDevice", "seqGrp", "extraEqa"))) 
 
 
 multivariablePlot(oddsAllNotFailedPOCT, extraFacetVars = 'eqa', 
                  ylab = 'univariate odds ratios')
 
-ggpub('oddsAllNotFailedPOCT', height= 180, device = 'pdf')
+ggpub('oddsAllNotFailedPOCT', height= 200, device = 'pdf')
 
 
 ggplot(oddsPrevEqaNotFailed,
@@ -574,7 +578,7 @@ formatOddsFromImpute <- function(fit, cc){
     mutate(var = str_replace(var, xvar, '')) %>%
     mutate(var = factor(var)) %>%
     mutate(var = fct_reorder(var, odds)) %>%
-    mutate(xvar = factor(xvar, levels = c('sharedDevice', 'seqGrp', "extraEqa")))
+    mutate(xvar = factor(xvar, levels = c("extraEqa", 'seqGrp', 'sharedDevice')))
   
   oddsData
 }
@@ -586,7 +590,9 @@ countFromImpute <- function(data){
     summarise(n = n()) %>%
     gather(xvar, var, -n) %>%
     group_by(xvar, var) %>%
-    summarise(n = sum(n))
+    summarise(n = sum(n)) %>%
+    ungroup() %>%
+    mutate(xvar = factor(xvar, levels = c("extraEqa", 'seqGrp', 'sharedDevice')))
 }
 
 oddsFromImpute <- function(miceData, good = TRUE){
