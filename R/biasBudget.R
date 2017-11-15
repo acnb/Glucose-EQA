@@ -71,7 +71,7 @@ plotAllowedBias <- function(data, title){
               xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
     geom_hline(yintercept = 0, linetype = 2) +
     geom_errorbar(data = data ,
-                  aes(x=charDev, ymin=budgetLower, ymax=budgetUpper, color=eqa),
+                  aes(x=sharedDevice, ymin=budgetLower, ymax=budgetUpper, color=eqa),
                   position = position_dodge())+
     scale_y_continuous(sec.axis = 
                          sec_axis(~./mmolConvFactor, 
@@ -90,7 +90,7 @@ plotAllowedBias <- function(data, title){
 }
 
 
-budgetByDevice.CV <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
+budgetByDevice.CV <- ddply(cv.by.device, c('sharedDevice', 'type', 'eqa'),
                         function(x){
                           biasBudgetSEG.CV(x[1, 'mean.cv.w'])
                         })
@@ -100,7 +100,7 @@ addTable(rtf,budgetByDevice.CV)
 done(rtf)
 
 
-budgetByDevice.CharFunc <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
+budgetByDevice.CharFunc <- ddply(cv.by.device, c('sharedDevice', 'type', 'eqa'),
                            function(x){
                              biasBudgetSEG.CharFunc(x[1, 'a'], x[1, 'b'])
                            })
@@ -113,9 +113,8 @@ budgetByDevice.graph <- budgetByDevice.CV %>%
   mutate(math = 'CV') %>%
   rbind(budgetByDevice.CharFunc %>% 
           mutate(math = "characteristic\nfunction")) %>%
-  filter(charDev != 'others') %>%
-  mutate(charDev = str_replace(charDev, "\n", " ")) %>%
-  mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
+  mutate(sharedDevice = str_replace(sharedDevice, "\n", " ")) %>%
+  mutate(sharedDevice = parse_factor(sharedDevice, levels= unique(sharedDevice)))
 
 
 plotAllowedBias(budgetByDevice.graph, 'bias budget (Surveillance Error Grid)')
@@ -184,7 +183,7 @@ biasBudgetSim.CharFunc <- function(a, b, sd=3){
 } 
 
 
-budgetByDevice.Sim.CV <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
+budgetByDevice.Sim.CV <- ddply(cv.by.device, c('sharedDevice', 'type', 'eqa'),
                            function(x){
                              biasBudgetSim.CV(x[1, 'mean.cv.w'])
                            })
@@ -195,7 +194,7 @@ addTable(rtf,budgetByDevice.Sim.CV)
 done(rtf)
 
 
-budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('charDev', 'type', 'eqa'),
+budgetByDevice.Sim.CharFunc <- ddply(cv.by.device, c('sharedDevice', 'type', 'eqa'),
                                  function(x){
                                    biasBudgetSim.CharFunc(x[1, 'a'], x[1, 'b'])
                                  })
@@ -209,9 +208,8 @@ budgetByDevice.Sim.graph <- budgetByDevice.Sim.CV %>%
   mutate(math = 'CV') %>%
   rbind(budgetByDevice.Sim.CharFunc %>% 
           mutate(math = "characteristic\nfunction")) %>%
-  filter(charDev != 'others') %>%
-  mutate(charDev = str_replace(charDev, "\n", " ")) %>%
-  mutate(charDev = parse_factor(charDev, levels= unique(charDev)))
+  mutate(sharedDevice = str_replace(sharedDevice, "\n", " ")) %>%
+  mutate(sharedDevice = parse_factor(sharedDevice, levels= unique(sharedDevice)))
 
 
 
@@ -259,7 +257,6 @@ borders <- as.data.frame(borders) %>%
 
 
 meanCharFunc <- cv.by.device %>%
-  filter(charDev != "others") %>%
   filter(type == 'CL') %>%
   summarise(a = median(a), b=median(b)) %>%
   as.list()

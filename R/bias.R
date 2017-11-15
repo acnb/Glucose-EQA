@@ -2,21 +2,17 @@ bias <- eqaAll %>%
   filter(eqa != 'POCT-RfB') %>%
   filter(!is.na(rmv)) %>%
   filter(rmv == target) %>%
-  filter(!str_detect(device, "Andere")) %>%
-  filter(!str_detect(device, "andere")) %>%
-  mutate(charDev = ifelse(is.na(sharedDevice), 
-                          as.character(device),
-                          as.character(sharedDevice))) %>%
-  filter(charDev != 'Other devices') %>% 
+  filter(sharedDevice != 'others') %>% 
   filter(abs(relDiff) < .45) %>%
-  mutate(charDev = if_else(charDev == 'ThermoFisher/Microgen./Konelab',
-                           'ThermoFisher/ Microgen./Konelab', charDev)) %>%
-  group_by(eqa, charDev) %>%
+  mutate(sharedDevice = as.character(sharedDevice)) %>%
+  mutate(sharedDevice = if_else(sharedDevice == 'ThermoFisher/Microgen./Konelab',
+                           'ThermoFisher/ Microgen./Konelab', sharedDevice)) %>%
+  group_by(eqa, sharedDevice) %>%
   mutate(n = n(), nlabs = n_distinct(pid)) %>%
   ungroup() %>%
   filter(n > 100) %>%
   filter(nlabs > 10) %>%
-  group_by(eqa, charDev, rmv, type) %>%
+  group_by(eqa, sharedDevice, rmv, type) %>%
   filter(n() > 7) %>%
   dplyr::summarise(n = n(), 
           stableMu = getMufromAlgA(value)
@@ -25,14 +21,14 @@ bias <- eqaAll %>%
   dplyr::mutate(bias.abs = rmv - stableMu, bias.rel = (rmv - stableMu)/rmv)
 
 medBias <- bias %>%
-  group_by(type, eqa, charDev) %>%
+  group_by(type, eqa, sharedDevice) %>%
   summarise(medBias = median(bias.rel))
 
 
 ggplot() +
   geom_rect(data = bias, aes(fill = type),
             xmin = -Inf,xmax = Inf, ymin = -Inf,ymax = Inf) +
-  geom_boxplot(data = bias, aes(x=charDev, y=bias.rel))+
+  geom_boxplot(data = bias, aes(x=sharedDevice, y=bias.rel))+
   facet_grid(eqa~., scale = 'free_y') +
   theme_pub()+
   scale_y_continuous(labels=percent) +
@@ -47,7 +43,7 @@ ggplot() +
 ggpub("bias", height = 150)
 
 medBias <- bias %>% 
-  group_by(type, charDev, eqa) %>% 
+  group_by(type, sharedDevice, eqa) %>% 
   summarise(m = median (bias.rel))
 
 print(medBias)

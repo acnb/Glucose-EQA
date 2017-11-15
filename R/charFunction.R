@@ -1,22 +1,9 @@
 dataCharFunc <- eqaAll %>%
+  filter(sharedDevice != 'others') %>%
   filter(!is.na(rmv)) %>%
-  filter(!str_detect(device, "Andere")) %>%
-  filter(!str_detect(device, "andere")) %>%
-  mutate(charDev = ifelse(is.na(sharedDevice), 
-                          as.character(device),
-                          as.character(sharedDevice))) %>%
-  filter(charDev != 'Other devices') %>% 
-  filter(charDev != 'Roche: other devices') %>% 
-  filter(charDev != 'Abbott: other devices') %>% 
   filter(abs(relDiff) < .45) %>%
-  mutate(charDev = if_else(charDev == 'ThermoFisher/Microgen./Konelab',
-                           'ThermoFisher/ Microgen./Konelab', charDev)) %>%
-  group_by(eqa, charDev, rmv, type) %>%
+  group_by(eqa, sharedDevice, rmv, type) %>%
   filter(n() > 7) %>%
-  group_by(eqa, charDev) %>%
-  filter(n_distinct(rmv) >= 5) %>%
-  filter(n_distinct(pid) >= 10) %>%
-  filter(n() >= 100) %>%
   ungroup() %>%
   mutate(eqa = fct_collapse(eqa, 'RfB' = c('POCT-RfB', 'CL-RfB'),
                             'Instand' = c('POCT-Instand', 'CL-Instand')))
@@ -39,7 +26,7 @@ getParamNls <- function(x, idx){
   c(abs(coef(model)[['a']]), coef(model)[['b']])
 }
 
-charFuncConf <- ddply(dataCharFunc, c('type', 'eqa', 'charDev'), 
+charFuncConf <- ddply(dataCharFunc, c('type', 'eqa', 'sharedDevice'), 
                          function(x){
                            btrp <- boot(x, statistic = getParamNls, R=2000)
                            ciA <- boot.ci(btrp, index = 1, type = "perc")
@@ -53,7 +40,7 @@ charFuncConf <- ddply(dataCharFunc, c('type', 'eqa', 'charDev'),
                          })
 
 targetsAndImprecision <- dataCharFunc %>%
-  group_by(eqa, charDev, rmv, type) %>%
+  group_by(eqa, sharedDevice, rmv, type) %>%
   summarise(
     sd = getSfromAlgA(value),
     sdE = max(.Machine$double.eps, getStErrorForS(value)),
@@ -61,13 +48,11 @@ targetsAndImprecision <- dataCharFunc %>%
   mutate(cv = sd/targetAlgA) %>%
   mutate(w = (1/sdE^2)/sum(1/sdE^2)) %>%
   ungroup() %>%
-  # filter
-  join(charFuncConf %>% select(eqa, charDev), type = "inner") %>%
   commonOrder() %>%
-  mutate(charDev = fct_reorder(charDev, as.numeric(type)))
+  mutate(sharedDevice = fct_reorder(sharedDevice, as.numeric(type)))
 
 paramsCharFunc <- ddply(targetsAndImprecision, 
-                        c('eqa', 'charDev', 'type'), 
+                        c('eqa', 'sharedDevice', 'type'), 
                         function(x){
                           model <- NULL
                           try({
@@ -83,20 +68,20 @@ paramsCharFunc <- ddply(targetsAndImprecision,
                         })
 
 resids <- paramsCharFunc %>%
-  select(eqa, charDev, type, x, w, r, cv)
+  select(eqa, sharedDevice, type, x, w, r, cv)
 
 paramsCharFunc2 <- paramsCharFunc %>% 
-  select(eqa, charDev, type, a, b) %>%
+  select(eqa, sharedDevice, type, a, b) %>%
   unique() %>%
   left_join(charFuncConf, by=c('eqa' = 'eqa',
-                               'charDev' = 'charDev',
+                               'sharedDevice' = 'sharedDevice',
                                'type' =  'type'))
 
 
 grid <- seq(from=30, to=500, by=.5)
 
 lines.char.func <- ddply(paramsCharFunc2, 
-                         c('eqa', 'charDev', 'type'), 
+                         c('eqa', 'sharedDevice', 'type'), 
                          function(x){
                            data.frame(
                              x=grid,
@@ -108,7 +93,7 @@ lines.char.func <- ddply(paramsCharFunc2,
 
 lines.char.func <- lines.char.func %>%
   commonOrder() %>%
-  mutate(charDev = fct_reorder(charDev, as.numeric(type)))
+  mutate(sharedDevice = fct_reorder(sharedDevice, as.numeric(type)))
 
 ggplot() +
   geom_rect(data = resids, aes(fill = type),
@@ -119,7 +104,7 @@ ggplot() +
   geom_ribbon(data=lines.char.func, aes(x=x, ymin=ymin,
                                         ymax=pmin(ymax, .3), fill=eqa),
               alpha=0.3) +
-  facet_wrap(~charDev, labeller = label_wrap_gen(width=19)) +
+  facet_wrap(~sharedDevice, labeller = label_wrap_gen(width=19)) +
   theme_pub(base_size = 10) + 
   scale_alpha(guide = "none") +
   scale_color_manual(values = eqaColors, 
@@ -158,7 +143,7 @@ ggplot() +
   geom_text_repel(data = outliers, aes(x=x, y=r, color=eqa, label = label), 
                   size = 2) +
   geom_smooth(data = resids, aes(x=x, y=r, weight=w, color=eqa), method = 'gam')+
-  facet_wrap(~charDev, labeller = label_wrap_gen(width=19)) +
+  facet_wrap(~sharedDevice, labeller = label_wrap_gen(width=19)) +
   theme_pub(base_size = 10) + 
   scale_alpha(guide = "none") +
   scale_fill_manual(values = typeColors, guide = "none") + 
@@ -187,23 +172,23 @@ ggpub('residsCharFunc', height = 240)
 ## table ----
 
 cv.by.device <-  resids %>%
-  group_by(type, eqa, charDev) %>%
+  group_by(type, eqa, sharedDevice) %>%
   summarise(mean.cv.w = weighted.mean(cv, w), mean.cv = mean(cv)) %>%
   ungroup() %>%
   join(paramsCharFunc2, by=c('type' = 'type',
                              'eqa' = 'eqa', 
-                             'charDev' = 'charDev')) %>%
-  mutate_at(vars(-type, -eqa, -charDev), round, digits=3)
+                             'sharedDevice' = 'sharedDevice')) %>%
+  mutate_at(vars(-type, -eqa, -sharedDevice), round, digits=3)
 
 cv.by.device.diff <- cv.by.device %>%
-  group_by(charDev) %>%
+  group_by(sharedDevice) %>%
   filter('Instand' %in% eqa & 'RfB' %in% eqa) %>%
   summarise(diff = abs(mean.cv.w[eqa == 'Instand']
                        - mean.cv.w[eqa == 'RfB']))
 
 
 cv.by.device.table <- cv.by.device %>%
-  group_by(charDev, type) %>%
+  group_by(sharedDevice, type) %>%
   summarise(
     eqa = paste0(eqa, collapse = "\n"),
     mean = paste0(mean.cv.w, collapse = "\n"),
@@ -211,7 +196,7 @@ cv.by.device.table <- cv.by.device %>%
     beta = paste0(b, ' (', b.p025, ' - ', b.p975, ')', collapse = "\n")
     ) %>%
   ungroup() %>%
-  transmute(device = charDev, type=type, eqa = eqa, 
+  transmute(device = sharedDevice, type=type, eqa = eqa, 
             mean=mean, alpha=alpha, beta=beta)
 
 rtf<-RTF(here('tab', 'precision.rtf'))
@@ -234,14 +219,14 @@ diffCvs <- paramsCharFunc2 %>%
 
 
 cv.diffs.by.device <-  resids %>%
-  group_by(type, eqa, charDev) %>%
+  group_by(type, eqa, sharedDevice) %>%
   summarise(mean.cv.w = weighted.mean(cv, w), mean.cv = mean(cv)) %>%
   ungroup() %>%
   join(diffCvs, by=c('type' = 'type',
                              'eqa' = 'eqa', 
-                             'charDev' = 'charDev')) %>%
-  mutate_at(vars(-type, -eqa, -charDev), round, digits=3) %>%
-  group_by(charDev, type) %>%
+                             'sharedDevice' = 'sharedDevice')) %>%
+  mutate_at(vars(-type, -eqa, -sharedDevice), round, digits=3) %>%
+  group_by(sharedDevice, type) %>%
   summarise(
     eqa = paste0(eqa, collapse = "\n"),
     mean = paste0(mean.cv.w, collapse = "\n"),
@@ -252,7 +237,7 @@ cv.diffs.by.device <-  resids %>%
     diffP = paste0(round(diffP, 1), collapse = "\n")
   ) %>%
   ungroup() %>%
-  transmute(device = charDev, type=type, eqa = eqa, 
+  transmute(device = sharedDevice, type=type, eqa = eqa, 
             mean=mean, alpha=alpha, beta=beta, cv80 = cv80, 
             cv300 = cv300, diffP = diffP)
 

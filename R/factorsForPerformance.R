@@ -176,9 +176,6 @@ byMulti <- eqaAllMulti %>%
   left_join(eqasByYearMulti, by=c('year' = 'year', 'pid' = 'pid')) %>%
   filter(as.character(extraEqa) != as.character(eqa)) %>%
   left_join(prevMulti , by=c('eqa' = 'eqa', 'seq' = 'seq', 'pid'='pid')) %>%
-  mutate(sharedDevice = as.character(sharedDevice)) %>%
-  mutate(sharedDevice = ifelse(is.na(sharedDevice), 
-                               "others", sharedDevice)) %>%
   mutate(good = ifelse(status == 'good', 1, 0)) %>%
   mutate(notFailed = ifelse(status != 'failed', 1, 0)) %>%
   mutate(status.prev = factor(status.prev, ordered= FALSE)) %>%
@@ -190,15 +187,6 @@ byMulti <- eqaAllMulti %>%
                 status.prev, sharedDevice, notFailed, 
                 good, eqaRound, pid, round, rd1, rd2, status, 
                 extraEqaSingle, type) %>%
-  group_by(sharedDevice, eqa) %>%
-  mutate(n = n(), nlabs = n_distinct(pid)) %>%
-  group_by(sharedDevice) %>%
-  mutate(minNLabs = min(nlabs), nSum = sum(n)) %>%
-  ungroup() %>%
-  mutate(sharedDevice = ifelse(nSum < 100 | minNLabs < 10, 
-                               "others", sharedDevice)) %>%
-  mutate(minNLabs = NULL, nSum = NULL) %>%
-  mutate(sharedDevice = factor(sharedDevice), n = NULL) %>%
   mutate(sharedDevice = fct_relevel(sharedDevice, 'others')) %>%
   mutate(seqGrp = fct_relevel(seqGrp, 'new')) %>%
   mutate(status.prev = fct_relevel(status.prev, 'acceptable')) %>%
@@ -207,17 +195,7 @@ byMulti <- eqaAllMulti %>%
 ### combine devices ----
 
 byMultiComplete <- byMulti %>%
-  filter(!is.na(seqGrp)) %>%
-  mutate(sharedDevice = as.character(sharedDevice)) %>%
-  group_by(sharedDevice, eqa) %>%
-  mutate(n = n(), nlabs = n_distinct(pid)) %>%
-  group_by(sharedDevice) %>%
-  mutate(minNLabs = min(nlabs), totNLabs = n_distinct(pid), nSum = sum(n)) %>%
-  ungroup() %>%
-  mutate(sharedDevice = ifelse(nSum < 50 | minNLabs < 5 | totNLabs < 10,
-                               "others", sharedDevice)) %>%
-  mutate(sharedDevice = as.factor(sharedDevice)) %>%
-  mutate(sharedDevice = fct_relevel(sharedDevice, 'others'))
+  filter(!is.na(seqGrp)) 
 
 ## percentage plots ----
 
@@ -530,10 +508,6 @@ oddsMultiGoodPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
 plotMultiGoodPOCT <- multivariablePlot(oddsMultiGoodPOCT)
 ggpub('oddsMultiGoodPOCT', height= 120, plot = plotMultiGoodPOCT)
 
-oddsMultiGoodAll <- rbind(oddsMultiGoodCL, oddsMultiGoodPOCT)
-multivariablePlot(oddsMultiGoodAll, extraFacetVars = 'type')
-ggpub('final/oddsMultiGoodAll', height= 200,  device = 'pdf')
-
 oddsMultiNotFailedPOCT <- multiOdds(byMultiComplete %>% filter(type == 'POCT'),
                                     good = FALSE)
 
@@ -547,8 +521,10 @@ oddsMultiGoodCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
 
 plotMultiGoodCL <- multivariablePlot(oddsMultiGoodCL)
 ggpub('oddsMultiGoodCL', height= 120, plot = plotMultiGoodCL)
-ggpub('final/ooddsMultiGoodCL', height= 120, 
-      plot = plotMultiGoodCL, device = 'pdf')
+
+oddsMultiGoodAll <- rbind(oddsMultiGoodCL, oddsMultiGoodPOCT)
+multivariablePlot(oddsMultiGoodAll, extraFacetVars = 'type')
+ggpub('final/oddsMultiGoodAll', height= 200,  device = 'pdf')
 
 oddsMultiNotFailedCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                     good = FALSE)
@@ -687,7 +663,7 @@ dataPOCT <- byMulti %>%
   filter(type == 'POCT')
 
 multiMicePOCT <- mice(dataPOCT %>%
-                       dplyr::select(-pid, -id,  -nlabs), 
+                       dplyr::select(-pid, -id), 
                     method = meths,     m=5, 
                     fullData = dataPOCT)
 
@@ -723,7 +699,7 @@ dataMiceCL <- byMulti %>%
   filter(type == 'CL')
 
 multiMiceCL <- mice(dataMiceCL %>%
-                      dplyr::select(-pid, -id,  -nlabs), 
+                      dplyr::select(-pid, -id), 
                       method = meths,     m=5, 
                       fullData = dataMiceCL
 )
