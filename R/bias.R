@@ -1,5 +1,5 @@
 bias <- eqaAll %>%
-  filter(eqa != 'POCT-RfB') %>%
+  filter(type == 'CL') %>%
   filter(!is.na(rmv)) %>%
   filter(rmv == target) %>%
   filter(sharedDevice != 'others') %>% 
