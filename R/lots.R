@@ -37,10 +37,10 @@ pLots <- ggplot(diffBetweenLots,
         panel.grid.minor.y = element_blank(),
         panel.grid.major.y = element_blank(),
         legend.position="none") +
-  xlab('') +
+  xlab('sample measured using the same\n device but different lots') +
   ylab("maximum difference between lots\n in same EQA distribution")
 
 ggpub('lots', width = 85, height= 100, plot = pLots)
 ggpub('final/lots', formatWidth="oneColumn", 
-      height= 100, plot = pLots, device = 'tiff', 
+      height= 100, plot = pLots, device = 'png', 
       dpi = 600)

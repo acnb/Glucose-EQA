@@ -523,14 +523,18 @@ plotMultiGoodCL <- multivariablePlot(oddsMultiGoodCL)
 ggpub('oddsMultiGoodCL', height= 120, plot = plotMultiGoodCL)
 
 oddsMultiGoodAll <- rbind(oddsMultiGoodCL, oddsMultiGoodPOCT)
-multivariablePlot(oddsMultiGoodAll, extraFacetVars = 'type')
-ggpub('final/oddsMultiGoodAll', height= 200,  device = 'pdf')
+plotMultiGoodAll <-  multivariablePlot(oddsMultiGoodAll, extraFacetVars = 'type')
+ggpub('final/oddsMultiGoodAll', height= 200,  device = 'pdf', plot = plotMultiGoodAll)
 
 oddsMultiNotFailedCL <- multiOdds(byMultiComplete %>% filter(type == 'CL'),
                                     good = FALSE)
 
 plotMultiNotFailedCL  <- multivariablePlot(oddsMultiNotFailedCL)
 ggpub('oddsMultiNotFailedCL', height= 100, plot = plotMultiNotFailedCL)
+
+oddsMultiNotFailedAll <- rbind(oddsMultiNotFailedCL, oddsMultiNotFailedPOCT)
+multivariablePlot(oddsMultiNotFailedAll, extraFacetVars = 'type')
+ggpub('oddsMultiNotFailedAll', height= 200,  device = 'pdf')
 
 ## imputation ----
 set.seed(1)
@@ -615,10 +619,10 @@ mice.impute.impSeq <- function(y, ry, x, fullData, ...){
       
       sel <- missingFirst | notMissing
       
-      imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], ...)
+      imputeFirst <- mice.impute.pmm(y[sel], ry[sel], x[sel, ], wy = NULL)
     },
     error = function(x){
-      print('repeat')
+      print(x)
       errorEncountered <<- TRUE
       return(NA)
     },
@@ -649,9 +653,9 @@ seqGrpFromSeq <- function(seq){
 
 meths <- c('year' = '', 'eqa' = '', 'seq' = 'impSeq', 
            'seqGrp' = '~seqGrpFromSeq(seq)', 'extraEqa'= '',
-           'status.prev' = '', 'sharedDevice' = '', 'device' = '',
+           'status.prev' = '', 'sharedDevice' = '', 
            'notFailed' = '', 'good' = '', 'eqaRound' = '', 'round' = '',
-           'rd1' = '', 'rd2' = '', 'status' = '', 'extraEqaSingle' = '') 
+           'rd1' = '', 'rd2' = '', 'status' = '', 'extraEqaSingle' = '', 'type' ='') 
 
 exclDevs <- levels(byMulti$sharedDevice)[!levels(byMulti$sharedDevice) %in% 
                                            levels(byMultiComplete$sharedDevice)]
@@ -729,3 +733,23 @@ plotMultiNotFailedCL +
 
 ggpub('oddsMultiCLNotFailedImp', height= 120)
 
+##
+
+oddsMultiGoodAllImp <- rbind(
+  oddsMultiGoodCLImp %>%  mutate(type = 'CL'),
+  oddsMultiGoodPOCTImp %>% mutate(type = 'POCT')
+)
+
+missingCountsAll <- rbind(
+  missingCountsPOCT %>% mutate(type = 'POCT'),
+  missingCountsCL %>% mutate(type = 'CL')
+  )
+    
+plotMultiGoodAll +
+  geom_point(data = oddsMultiGoodAllImp,
+             aes(x=var, y=odds), colour='red', shape=4) +
+  geom_text(data = missingCountsAll,
+            aes(x=var, y= 0.45, label=paste0('(+',n,')')), 
+            colour = 'red', hjust=1)
+
+ggpub('oddsMultiAllGoodImp', height= 200, device = 'pdf')

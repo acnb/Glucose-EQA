@@ -127,6 +127,7 @@ ggplot() +
   ylab('relative imprecision (spread / consensus value)')
 
 ggpub('charFunc', height = 240)
+ggpub('final/charFunc', device = 'tiff', dpi = 600, height = 240)
 
 
 outliers <- resids %>%

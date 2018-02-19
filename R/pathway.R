@@ -102,6 +102,7 @@ ggplot(outcomeStats, aes(x=act, y=p, label = n, fill =  pHasFailed)) +
         legend.title = element_blank())
 
 ggpub("pathAll", height = 120)
+ggpub('final/pathAll', width = 120, height = 120, dpi = 600, device = 'pdf')
 
 changeGraph <- eqaAll %>%
   filter(type == 'POCT') %>%
@@ -148,3 +149,4 @@ ggplot() +
   facet_grid(~eqa)
 
 ggpub("pathDetail", width = 75, height = 120)
+ggpub('final/pathDetail', width = 75, height = 120, dpi = 600, device = 'pdf')
